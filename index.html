@@ -1661,6 +1661,15 @@
 
       // Compute Mining Profit Aggregation (Weekly 7 days & All-Time)
       const runsMap = {};
+      if (rawData.mining_runs && typeof rawData.mining_runs === 'object') {
+        Object.entries(rawData.mining_runs).forEach(([k, r]) => {
+          if (r && typeof r === 'object') {
+            const t = Number(r.time) || Number(k) || 0;
+            const key = t > 0 ? String(t) : ((r.dateStr || 'run') + '_' + (r.timeStr || k));
+            runsMap[key] = { ...r, time: t };
+          }
+        });
+      }
       if (mining.runs && typeof mining.runs === 'object') {
         Object.entries(mining.runs).forEach(([k, r]) => {
           if (r && typeof r === 'object') {
@@ -2259,11 +2268,19 @@
       }
     }
 
-    function renderFarmHistory(m) {
+    function renderFarmHistory(runsOrMining) {
       const container = document.getElementById('farmHistoryList');
       if (!container) return;
 
-      const history = m.history || [];
+      let history = [];
+      if (Array.isArray(runsOrMining)) {
+        history = runsOrMining;
+      } else if (runsOrMining && typeof runsOrMining === 'object') {
+        history = runsOrMining.history || runsOrMining.runs || [];
+        if (!Array.isArray(history) && typeof history === 'object') {
+          history = Object.values(history);
+        }
+      }
       if (history.length === 0) {
         container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">История сборов появится после первого завершения FlashMiner</div>';
         return;
@@ -2359,7 +2376,7 @@
         }
 
         renderCoolantMonitor(m);
-        renderFarmHistory(m);
+        renderFarmHistory((data.miningProfit && data.miningProfit.runs) || m.history || []);
       }
 
       // 1.1 Mining Profit tab

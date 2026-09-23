@@ -1251,7 +1251,7 @@
 
       <div class="breakdown-item">
         <div class="breakdown-item-header">
-          <span class="breakdown-item-name">👑 Семья и аксессуары</span>
+          <span class="breakdown-item-name">👑 Аксессуары, договоры и семья</span>
           <span id="breakdownBonusVal" class="breakdown-item-val">$0 (0%)</span>
         </div>
         <div class="bar-bg">
@@ -1676,31 +1676,30 @@
 
       const demo = {
         updatedAt: Date.now(),
-        updatedAtStr: '23.09.2026 22:30',
+        updatedAtStr: '24.09.2026 00:30',
         summary: {
-          todayTotal: 18450000,
-          todayAZ: 54,
-          todaySalary: 10200000,
-          todayDeposit: 6150000,
-          todayBonus: 2100000,
-          todayCount: 18,
-          yesterdayTotal: 34200000,
-          yesterdayAZ: 110,
-          weekTotal: 198000000,
-          weekAZ: 620,
-          monthTotal: 685000000,
-          monthAZ: 2240
+          todayTotal: 23106084,
+          todayAZ: 106,
+          todaySalary: 16488236,
+          todayDeposit: 5077848,
+          todayBonus: 1540000,
+          todayAccessories: 1540000,
+          todayRub: 4,
+          todayCount: 2,
+          yesterdayTotal: 46212168,
+          yesterdayAZ: 212,
+          weekTotal: 280000000,
+          weekAZ: 1250,
+          monthTotal: 950000000,
+          monthAZ: 4500
         },
         halfHourlyToday: halfHours,
         hourlyToday: hours,
         dailyWeek: week,
         dailyMonth: month,
         recentPaydays: [
-          { timeStr: '22:30', dateStr: '2026-09-23', salary: 1250000, deposit: 750000, bonus: 250000, az: 6, total: 2250000 },
-          { timeStr: '22:00', dateStr: '2026-09-23', salary: 1250000, deposit: 750000, bonus: 200000, az: 6, total: 2200000 },
-          { timeStr: '21:30', dateStr: '2026-09-23', salary: 1200000, deposit: 750000, bonus: 150000, az: 6, total: 2100000 },
-          { timeStr: '21:00', dateStr: '2026-09-23', salary: 1200000, deposit: 750000, bonus: 100000, az: 6, total: 2050000 },
-          { timeStr: '20:30', dateStr: '2026-09-23', salary: 1150000, deposit: 750000, bonus: 100000, az: 6, total: 2000000 }
+          { timeStr: '00:30', dateStr: '2026-09-24', salary: 8244118, deposit: 2538924, accessories: 770000, bonus: 770000, az: 53, rub: 2, total: 11553042 },
+          { timeStr: '00:00', dateStr: '2026-09-24', salary: 8244118, deposit: 2538924, accessories: 770000, bonus: 770000, az: 53, rub: 2, total: 11553042 }
         ],
         mining: {
           active: false,
@@ -1905,7 +1904,7 @@
       const todayTotal = s.todayTotal || 1;
       const sal = s.todaySalary || 0;
       const dep = s.todayDeposit || 0;
-      const bon = s.todayBonus || 0;
+      const bon = s.todayAccessories || s.todayBonus || 0;
 
       const salPct = Math.round((sal / todayTotal) * 100);
       const depPct = Math.round((dep / todayTotal) * 100);
@@ -1931,13 +1930,15 @@
         recent.forEach(r => {
           const item = document.createElement('div');
           item.className = 'recent-item';
+          const accVal = r.accessories || r.bonus || 0;
           item.innerHTML = `
             <div class="recent-item-left">
               <span class="recent-time">🕒 ${r.timeStr || '--:--'} МСК (${r.dateStr || ''})</span>
               <div class="recent-pills">
                 <span class="recent-pill">💼 ${fmtShort(r.salary)}</span>
                 <span class="recent-pill">🏦 ${fmtShort(r.deposit)}</span>
-                ${r.bonus ? `<span class="recent-pill">👑 ${fmtShort(r.bonus)}</span>` : ''}
+                ${accVal ? `<span class="recent-pill">👑 +${fmtShort(accVal)}</span>` : ''}
+                ${r.rub ? `<span class="recent-pill">🪙 +${r.rub}₽</span>` : ''}
               </div>
             </div>
             <div class="recent-item-right">
@@ -2140,6 +2141,14 @@
 
     // Initial launch
     refreshData();
+
+    // Auto-refresh every 30 seconds so MiniApp updates live without manual reload
+    setInterval(() => {
+      const url = getCloudUrl();
+      if (url && !isDemo) {
+        refreshData();
+      }
+    }, 30000);
   </script>
 </body>
 </html>

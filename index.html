@@ -1528,6 +1528,245 @@
       return `${url}/users/${userKey}.json`;
     }
 
+    function getMskDate(tSeconds) {
+      const date = new Date((tSeconds + 10800) * 1000);
+      return {
+        year: date.getUTCFullYear(),
+        month: date.getUTCMonth() + 1,
+        day: date.getUTCDate(),
+        hour: date.getUTCHours(),
+        minute: date.getUTCMinutes(),
+        sec: date.getUTCSeconds(),
+        wday: date.getUTCDay()
+      };
+    }
+
+    function getGameDateStr(tSeconds) {
+      let msk = tSeconds + 10800;
+      let date = new Date(msk * 1000);
+      if (date.getUTCHours() < 5) {
+        msk -= 86400;
+        date = new Date(msk * 1000);
+      }
+      const y = date.getUTCFullYear();
+      const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(date.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function processIncomingCloudData(rawData) {
+      if (!rawData || typeof rawData !== 'object') return rawData;
+
+      const mining = rawData.mining || {
+        active: false,
+        btc: 0,
+        asc: 0,
+        started: 0,
+        housesCount: 0,
+        allCoolantOk: true,
+        coolantIssues: [],
+        history: [],
+        lastFarmTime: 0,
+        lastFarmTimeStr: '',
+        lastFarmDateStr: ''
+      };
+
+      if (!rawData.paydays && rawData.summary && rawData.halfHourlyToday) {
+        return {
+          ...rawData,
+          mining: mining
+        };
+      }
+
+      let paydayList = [];
+      if (Array.isArray(rawData.paydays)) {
+        paydayList = rawData.paydays.filter(p => p && typeof p === 'object');
+      } else if (rawData.paydays && typeof rawData.paydays === 'object') {
+        paydayList = Object.values(rawData.paydays).filter(p => p && typeof p === 'object');
+      }
+
+      paydayList.sort((a, b) => (b.time || 0) - (a.time || 0));
+
+      const now = Math.floor(Date.now() / 1000);
+      const todayDate = getGameDateStr(now);
+      const yesterdayDate = getGameDateStr(now - 86400);
+      const sevenDaysAgo = now - 7 * 86400;
+      const thirtyDaysAgo = now - 30 * 86400;
+
+      const halfHourlyToday = [];
+      for (let s = 0; s < 48; s++) {
+        const h = Math.floor(s / 2);
+        const m = (s % 2) * 30;
+        halfHourlyToday.push({
+          slot: s,
+          hour: h,
+          minute: m,
+          label: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+          total: 0,
+          az: 0,
+          count: 0
+        });
+      }
+
+      const hourlyToday = [];
+      for (let h = 0; h < 24; h++) {
+        hourlyToday.push({
+          hour: h,
+          hourStr: `${String(h).padStart(2, '0')}:00`,
+          total: 0,
+          az: 0,
+          count: 0
+        });
+      }
+
+      const dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+      const dailyWeek = [];
+      const dailyWeekMap = {};
+      for (let i = 6; i >= 0; i--) {
+        const t = now - i * 86400;
+        const d = getGameDateStr(t);
+        const msk = getMskDate(t);
+        const item = {
+          date: d,
+          dayName: dayNames[msk.wday] || '',
+          total: 0,
+          az: 0,
+          count: 0
+        };
+        dailyWeekMap[d] = item;
+        dailyWeek.push(item);
+      }
+
+      const dailyMonth = [];
+      const dailyMonthMap = {};
+      for (let i = 29; i >= 0; i--) {
+        const t = now - i * 86400;
+        const d = getGameDateStr(t);
+        const msk = getMskDate(t);
+        const item = {
+          date: d,
+          label: `${String(msk.day).padStart(2, '0')}.${String(msk.month).padStart(2, '0')}`,
+          total: 0,
+          az: 0,
+          count: 0
+        };
+        dailyMonthMap[d] = item;
+        dailyMonth.push(item);
+      }
+
+      let todayTotal = 0, todayAZ = 0, todaySalary = 0, todayDeposit = 0, todayBonus = 0, todayAccessories = 0, todayRub = 0, todayCount = 0;
+      let yesterdayTotal = 0, yesterdayAZ = 0;
+      let weekTotal = 0, weekAZ = 0;
+      let monthTotal = 0, monthAZ = 0;
+      let allTimeTotal = 0, allTimeAZ = 0;
+
+      for (const entry of paydayList) {
+        const eTotal = Number(entry.total) || 0;
+        const eAZ = Number(entry.az) || 0;
+        const eTime = Number(entry.time) || now;
+        const eDate = entry.dateStr || getGameDateStr(eTime);
+
+        allTimeTotal += eTotal;
+        allTimeAZ += eAZ;
+
+        if (eDate === todayDate) {
+          todayTotal += eTotal;
+          todayAZ += eAZ;
+          todaySalary += Number(entry.salary) || 0;
+          todayDeposit += Number(entry.deposit) || 0;
+          const accVal = Number(entry.accessories) || Number(entry.bonus) || 0;
+          todayAccessories += accVal;
+          todayBonus += accVal;
+          todayRub += Number(entry.rub) || 0;
+          todayCount++;
+
+          const eMsk = getMskDate(eTime);
+          const hIdx = eMsk.hour;
+          if (hourlyToday[hIdx]) {
+            hourlyToday[hIdx].total += eTotal;
+            hourlyToday[hIdx].az += eAZ;
+            hourlyToday[hIdx].count++;
+          }
+
+          const sIdx = eMsk.hour * 2 + (eMsk.minute >= 30 ? 1 : 0);
+          if (halfHourlyToday[sIdx]) {
+            halfHourlyToday[sIdx].total += eTotal;
+            halfHourlyToday[sIdx].az += eAZ;
+            halfHourlyToday[sIdx].count++;
+          }
+        }
+
+        if (eDate === yesterdayDate) {
+          yesterdayTotal += eTotal;
+          yesterdayAZ += eAZ;
+        }
+
+        if (dailyWeekMap[eDate]) {
+          dailyWeekMap[eDate].total += eTotal;
+          dailyWeekMap[eDate].az += eAZ;
+          dailyWeekMap[eDate].count++;
+        }
+        if (eTime >= sevenDaysAgo) {
+          weekTotal += eTotal;
+          weekAZ += eAZ;
+        }
+
+        if (dailyMonthMap[eDate]) {
+          dailyMonthMap[eDate].total += eTotal;
+          dailyMonthMap[eDate].az += eAZ;
+          dailyMonthMap[eDate].count++;
+        }
+        if (eTime >= thirtyDaysAgo) {
+          monthTotal += eTotal;
+          monthAZ += eAZ;
+        }
+      }
+
+      const curMsk = getMskDate(now);
+      const curTimeStr = `${String(curMsk.day).padStart(2, '0')}.${String(curMsk.month).padStart(2, '0')}.${curMsk.year} ${String(curMsk.hour).padStart(2, '0')}:${String(curMsk.minute).padStart(2, '0')}`;
+
+      return {
+        updatedAt: now,
+        updatedAtStr: curTimeStr,
+        summary: {
+          todayTotal,
+          todayAZ,
+          todaySalary,
+          todayDeposit,
+          todayBonus,
+          todayAccessories,
+          todayRub,
+          todayCount,
+          yesterdayTotal,
+          yesterdayAZ,
+          weekTotal,
+          weekAZ,
+          monthTotal,
+          monthAZ,
+          allTimeTotal,
+          allTimeAZ,
+          allTimeCount: paydayList.length
+        },
+        lastPayday: paydayList[0] || {
+          time: now,
+          timeStr: `${String(curMsk.hour).padStart(2, '0')}:${String(curMsk.minute).padStart(2, '0')}`,
+          salary: 0,
+          deposit: 0,
+          accessories: 0,
+          bonus: 0,
+          az: 0,
+          rub: 0,
+          total: 0
+        },
+        halfHourlyToday,
+        hourlyToday,
+        dailyWeek,
+        dailyMonth,
+        recentPaydays: paydayList.slice(0, 30),
+        mining: mining
+      };
+    }
+
     function saveCloudSettings() {
       const inp = document.getElementById('cloudUrlInput').value.trim();
       const chatInp = document.getElementById('chatIdInput')?.value.trim();
@@ -1615,9 +1854,10 @@
 
         if (data && typeof data === 'object') {
           hideEmptyDatabaseNotice();
-          appData = data;
-          updateUI(data);
-          updateSyncStatus('online', 'Онлайн (' + (data.updatedAtStr ? data.updatedAtStr.split(' ')[1] : 'сейчас') + ')');
+          const processed = processIncomingCloudData(data);
+          appData = processed;
+          updateUI(processed);
+          updateSyncStatus('online', 'Онлайн (' + (processed.updatedAtStr ? processed.updatedAtStr.split(' ')[1] : 'сейчас') + ')');
           if (isManual) {
             showToast('Данные загружены из облака', '✅');
           }

@@ -1611,7 +1611,7 @@
     }
 
     function getMskDate(tSeconds) {
-      const date = new Date((tSeconds + 10800) * 1000);
+      const date = new Date((Number(tSeconds) + 10800) * 1000);
       return {
         year: date.getUTCFullYear(),
         month: date.getUTCMonth() + 1,
@@ -1623,18 +1623,13 @@
       };
     }
 
-    function getGameDateStr(tSeconds) {
-      let msk = tSeconds + 10800;
-      let date = new Date(msk * 1000);
-      if (date.getUTCHours() < 5) {
-        msk -= 86400;
-        date = new Date(msk * 1000);
-      }
-      const y = date.getUTCFullYear();
-      const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(date.getUTCDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
+    function getMskDateStr(tSeconds) {
+      const m = getMskDate(tSeconds);
+      return `${m.year}-${String(m.month).padStart(2, '0')}-${String(m.day).padStart(2, '0')}`;
     }
+
+    // Alias for backward compatibility
+    const getGameDateStr = getMskDateStr;
 
     function processIncomingCloudData(rawData) {
       if (!rawData || typeof rawData !== 'object') return rawData;
@@ -1779,8 +1774,9 @@
       paydayList.sort((a, b) => (b.time || 0) - (a.time || 0));
 
       const now = Math.floor(Date.now() / 1000);
-      const todayDate = getGameDateStr(now);
-      const yesterdayDate = getGameDateStr(now - 86400);
+      const curMsk = getMskDate(now);
+      const todayDate = getMskDateStr(now);
+      const yesterdayDate = getMskDateStr(now - 86400);
       const sevenDaysAgo = now - 7 * 86400;
       const thirtyDaysAgo = now - 30 * 86400;
 
@@ -1810,13 +1806,16 @@
         });
       }
 
+      // Anchor to noon MSK (09:00 UTC) of the current MSK day to guarantee stable day-stepping
+      const mskNoonUtcMs = Date.UTC(curMsk.year, curMsk.month - 1, curMsk.day, 9, 0, 0);
+
       const dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
       const dailyWeek = [];
       const dailyWeekMap = {};
       for (let i = 6; i >= 0; i--) {
-        const t = now - i * 86400;
-        const d = getGameDateStr(t);
-        const msk = getMskDate(t);
+        const tSec = Math.floor((mskNoonUtcMs - i * 86400 * 1000) / 1000);
+        const d = getMskDateStr(tSec);
+        const msk = getMskDate(tSec);
         const item = {
           date: d,
           dayName: dayNames[msk.wday] || '',
@@ -1831,9 +1830,9 @@
       const dailyMonth = [];
       const dailyMonthMap = {};
       for (let i = 29; i >= 0; i--) {
-        const t = now - i * 86400;
-        const d = getGameDateStr(t);
-        const msk = getMskDate(t);
+        const tSec = Math.floor((mskNoonUtcMs - i * 86400 * 1000) / 1000);
+        const d = getMskDateStr(tSec);
+        const msk = getMskDate(tSec);
         const item = {
           date: d,
           label: `${String(msk.day).padStart(2, '0')}.${String(msk.month).padStart(2, '0')}`,
@@ -1855,7 +1854,17 @@
         const eTotal = Number(entry.total) || 0;
         const eAZ = Number(entry.az) || 0;
         const eTime = Number(entry.time) || now;
-        const eDate = entry.dateStr || getGameDateStr(eTime);
+
+        let eDate = (entry.dateStr && String(entry.dateStr).trim()) || '';
+        if (eDate && eDate.includes('-')) {
+          const parts = eDate.split('-');
+          if (parts.length === 3) {
+            eDate = `${parts[0]}-${String(parts[1]).padStart(2, '0')}-${String(parts[2]).padStart(2, '0')}`;
+          }
+        }
+        if (!eDate) {
+          eDate = getMskDateStr(eTime);
+        }
 
         allTimeTotal += eTotal;
         allTimeAZ += eAZ;
@@ -1872,14 +1881,26 @@
           todayCount++;
 
           const eMsk = getMskDate(eTime);
-          const hIdx = eMsk.hour;
+          let h = eMsk.hour;
+          let m = eMsk.minute;
+          if (entry.timeStr && typeof entry.timeStr === 'string' && entry.timeStr.includes(':')) {
+            const parts = entry.timeStr.split(':');
+            const parsedH = parseInt(parts[0], 10);
+            const parsedM = parseInt(parts[1], 10);
+            if (!isNaN(parsedH) && !isNaN(parsedM)) {
+              h = parsedH;
+              m = parsedM;
+            }
+          }
+
+          const hIdx = Math.max(0, Math.min(23, h));
           if (hourlyToday[hIdx]) {
             hourlyToday[hIdx].total += eTotal;
             hourlyToday[hIdx].az += eAZ;
             hourlyToday[hIdx].count++;
           }
 
-          const sIdx = eMsk.hour * 2 + (eMsk.minute >= 30 ? 1 : 0);
+          const sIdx = Math.max(0, Math.min(47, h * 2 + (m >= 30 ? 1 : 0)));
           if (halfHourlyToday[sIdx]) {
             halfHourlyToday[sIdx].total += eTotal;
             halfHourlyToday[sIdx].az += eAZ;
@@ -1913,7 +1934,6 @@
         }
       }
 
-      const curMsk = getMskDate(now);
       const curTimeStr = `${String(curMsk.day).padStart(2, '0')}.${String(curMsk.month).padStart(2, '0')}.${curMsk.year} ${String(curMsk.hour).padStart(2, '0')}:${String(curMsk.minute).padStart(2, '0')}`;
 
       return {
@@ -2409,14 +2429,15 @@
       document.getElementById('kpiMonthAZ').textContent = '+' + (s.monthAZ || 0) + ' AZ';
 
       // 3. Breakdown
-      const todayTotal = s.todayTotal || 1;
+      const hasToday = (s.todayTotal && s.todayTotal > 0);
+      const todayTotal = hasToday ? s.todayTotal : 1;
       const sal = s.todaySalary || 0;
       const dep = s.todayDeposit || 0;
       const bon = s.todayAccessories || s.todayBonus || 0;
 
-      const salPct = Math.round((sal / todayTotal) * 100);
-      const depPct = Math.round((dep / todayTotal) * 100);
-      const bonPct = Math.max(0, 100 - salPct - depPct);
+      const salPct = hasToday ? Math.round((sal / todayTotal) * 100) : 0;
+      const depPct = hasToday ? Math.round((dep / todayTotal) * 100) : 0;
+      const bonPct = hasToday ? Math.max(0, 100 - salPct - depPct) : 0;
 
       document.getElementById('breakdownSalaryVal').textContent = `${fmtShort(sal)} (${salPct}%)`;
       document.getElementById('breakdownSalaryBar').style.width = salPct + '%';

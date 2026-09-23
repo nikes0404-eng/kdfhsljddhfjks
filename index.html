@@ -831,6 +831,11 @@
     Для прямого запуска сбора ферм открывайте пульт через кнопку <b>«⚡ Пульт и аналитика»</b> на клавиатуре чата.
   </div>
 
+  <div id="emptyDbNotice" class="banner" style="background: rgba(99, 102, 241, 0.14); border: 1px solid rgba(99, 102, 241, 0.4); color: #c7d2fe;">
+    <strong>☁️ База данных подключена успешно!</strong>
+    В базе пока нет записей. В игре откройте меню <code>/mntg</code> и нажмите кнопку <b>[ Синхронизировать сейчас ]</b> (или дождитесь первого PayDay), чтобы отправить первый отчёт. Пока отображаются демо-графики.
+  </div>
+
   <!-- Header -->
   <header class="header">
     <div class="brand">
@@ -1050,6 +1055,15 @@
         <input type="text" id="cloudUrlInput" class="input-field" placeholder="https://xxx-default-rtdb.firebaseio.com">
       </div>
 
+      <div class="input-group">
+        <label for="chatIdInput">Telegram Chat ID (для браузера / ручной настройки):</label>
+        <input type="text" id="chatIdInput" class="input-field" placeholder="Например: 123456789">
+      </div>
+
+      <div style="font-size: 11.5px; color: #a5b4fc; background: rgba(99,102,241,0.12); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.25); line-height: 1.45;">
+        💡 <b>Подсказка:</b> Если база только создана, в ней ещё нет записей. В игре откройте <b>/mntg</b> и нажмите кнопку <b>[ Синхронизировать сейчас ]</b>, либо дождитесь PayDay, чтобы выгрузился первый отчёт!
+      </div>
+
       <button class="btn-action" onclick="saveCloudSettings()">
         💾 Сохранить и подключить
       </button>
@@ -1260,14 +1274,33 @@
       return localStorage.getItem('mng_cloud_url') || '';
     }
 
+    function getChatId() {
+      const tgUserId = tg?.initDataUnsafe?.user?.id;
+      if (tgUserId) return String(tgUserId);
+      return localStorage.getItem('mng_chat_id') || '';
+    }
+
+    function resolveFetchUrl(rawUrl) {
+      if (!rawUrl) return '';
+      let url = rawUrl.trim().replace(/\/+$/, '');
+      if (url.includes('.json')) return url;
+
+      const userKey = getChatId() || 'default';
+      return `${url}/users/${userKey}.json`;
+    }
+
     function saveCloudSettings() {
       const inp = document.getElementById('cloudUrlInput').value.trim();
+      const chatInp = document.getElementById('chatIdInput')?.value.trim();
       if (!inp) {
         showToast('Введите корректный URL!', '⚠️');
         return;
       }
       localStorage.setItem('mng_cloud_url', inp);
-      showToast('Cloud URL сохранён!', '✅');
+      if (chatInp) {
+        localStorage.setItem('mng_chat_id', chatInp);
+      }
+      showToast('Настройки сохранены!', '✅');
       isDemo = false;
       refreshData();
     }
@@ -1275,11 +1308,22 @@
     function toggleDemoMode() {
       isDemo = !isDemo;
       if (isDemo) {
+        hideEmptyDatabaseNotice();
         loadDemoData();
         showToast('Включен демо-режим', '💡');
       } else {
         refreshData();
       }
+    }
+
+    function showEmptyDatabaseNotice() {
+      const notice = document.getElementById('emptyDbNotice');
+      if (notice) notice.style.display = 'block';
+    }
+
+    function hideEmptyDatabaseNotice() {
+      const notice = document.getElementById('emptyDbNotice');
+      if (notice) notice.style.display = 'none';
     }
 
     async function refreshData() {
@@ -1289,6 +1333,9 @@
 
       const cloudUrl = getCloudUrl();
       document.getElementById('cloudUrlInput').value = cloudUrl;
+      const curChatId = getChatId();
+      const chatInp = document.getElementById('chatIdInput');
+      if (chatInp) chatInp.value = curChatId;
 
       if (!cloudUrl && !isDemo) {
         // No cloud configured, fallback to demo
@@ -1299,32 +1346,45 @@
 
       if (isDemo) {
         btn.classList.remove('spinning');
+        hideEmptyDatabaseNotice();
         loadDemoData();
         return;
       }
 
       try {
-        let fetchUrl = cloudUrl;
-        if (!fetchUrl.includes('.json')) {
-          fetchUrl = fetchUrl.replace(/\/+$/, '') + '/users/default.json';
-        }
+        const fetchUrl = resolveFetchUrl(cloudUrl);
+        console.log('[Sync] Fetching:', fetchUrl);
 
         const resp = await fetch(fetchUrl, { cache: 'no-cache' });
+        if (resp.status === 401 || resp.status === 403) {
+          throw new Error('Доступ закрыт (проверьте Rules в Firebase)');
+        }
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
         const data = await resp.json();
 
+        if (data === null) {
+          // Firebase returns null when database is empty (no data written yet)
+          updateSyncStatus('demo', 'База пока пуста');
+          showToast('База подключена! Отправьте данные из /mntg', 'ℹ️');
+          showEmptyDatabaseNotice();
+          if (!appData) loadDemoData();
+          return;
+        }
+
         if (data && typeof data === 'object') {
+          hideEmptyDatabaseNotice();
           appData = data;
           updateUI(data);
           updateSyncStatus('online', 'Онлайн (' + (data.updatedAtStr ? data.updatedAtStr.split(' ')[1] : 'сейчас') + ')');
-          showToast('Данные обновлены', '✅');
+          showToast('Данные загружены из облака', '✅');
         } else {
-          throw new Error('Пустые данные');
+          throw new Error('Некорректный формат ответа');
         }
       } catch (err) {
         console.warn('Sync failed:', err);
-        updateSyncStatus('offline', 'Офлайн (ошибка)');
-        showToast('Ошибка загрузки данных', '⚠️');
+        updateSyncStatus('offline', 'Ошибка подключения');
+        showToast('Ошибка: ' + (err.message || 'нет связи'), '⚠️');
         if (!appData) loadDemoData();
       } finally {
         btn.classList.remove('spinning');

@@ -752,20 +752,25 @@
 
     .chart-tooltip {
       position: absolute;
-      top: 10px;
+      top: 8px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(11, 12, 19, 0.95);
-      border: 1px solid var(--accent);
-      border-radius: 8px;
-      padding: 6px 12px;
-      font-size: 12px;
+      background: rgba(14, 16, 26, 0.95);
+      border: 1px solid rgba(157, 140, 255, 0.35);
+      border-radius: 20px;
+      padding: 5px 13px;
+      font-size: 11.5px;
       color: #fff;
       pointer-events: none;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 0 10px rgba(157, 140, 255, 0.15);
       display: none;
       white-space: nowrap;
       z-index: 10;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      max-width: calc(100% - 16px);
+      box-sizing: border-box;
+      transition: opacity 0.12s ease;
     }
 
     /* Breakdown Section */
@@ -2536,25 +2541,32 @@
         if (slots.length > 0) {
           dataset = slots.map(s => ({
             label: (s.minute === 0 && s.hour % 3 === 0) ? String(s.hour) : '',
-            fullLabel: `${s.label} (МСК)`,
+            fullLabel: `${s.label} МСК`,
             val: s.total || 0,
             az: s.az || 0
           }));
         } else {
           dataset = (appData.hourlyToday || []).map(h => ({
             label: (h.hour % 3 === 0) ? String(h.hour) : '',
-            fullLabel: `${h.hourStr} (МСК)`,
+            fullLabel: `${h.hourStr} МСК`,
             val: h.total || 0,
             az: h.az || 0
           }));
         }
       } else if (currentRange === 'week') {
-        dataset = (appData.dailyWeek || []).map(d => ({
-          label: d.dayName,
-          fullLabel: `${d.dayName} (${d.date})`,
-          val: d.total || 0,
-          az: d.az || 0
-        }));
+        dataset = (appData.dailyWeek || []).map(d => {
+          let shortDate = d.date;
+          if (d.date && d.date.includes('-')) {
+            const dp = d.date.split('-');
+            shortDate = `${dp[2]}.${dp[1]}`;
+          }
+          return {
+            label: d.dayName,
+            fullLabel: `${d.dayName}, ${shortDate}`,
+            val: d.total || 0,
+            az: d.az || 0
+          };
+        });
       } else {
         dataset = (appData.dailyMonth || []).map((m, idx) => ({
           label: (idx % 5 === 0) ? m.label : '',
@@ -2568,7 +2580,7 @@
 
       const maxVal = Math.max(...dataset.map(d => d.val), 100000);
       const paddingBottom = 26;
-      const paddingTop = 16;
+      const paddingTop = 20;
       const chartH = height - paddingBottom - paddingTop;
       const barSpacing = width / dataset.length;
       const barW = Math.max(3, barSpacing * 0.65);
@@ -2655,9 +2667,26 @@
       if (found && found.data) {
         if (isTg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
         tooltipEl.style.display = 'block';
-        tooltipEl.innerHTML = `<b>${found.data.fullLabel}</b>: ${fmtMoney(found.data.val)} • 💎 +${found.data.az} AZ`;
 
-        const leftPos = Math.max(70, Math.min(rect.width - 70, found.x + found.w / 2));
+        const azBadge = (found.data.az > 0)
+          ? ` &bull; <span style="color:#06b6d4;">💎 +${found.data.az} AZ</span>`
+          : '';
+
+        tooltipEl.innerHTML = `<span style="color:var(--accent); font-weight:600;">${found.data.fullLabel}</span> &bull; <b>${fmtMoney(found.data.val)}</b>${azBadge}`;
+
+        // Dynamic boundary-safe clamping based on actual rendered width
+        const tipWidth = tooltipEl.offsetWidth || 210;
+        const halfTip = tipWidth / 2;
+        const targetX = found.x + found.w / 2;
+
+        const pad = 8;
+        const minCenter = halfTip + pad;
+        const maxCenter = Math.max(minCenter, rect.width - halfTip - pad);
+
+        let leftPos = targetX;
+        if (leftPos < minCenter) leftPos = minCenter;
+        if (leftPos > maxCenter) leftPos = maxCenter;
+
         tooltipEl.style.left = leftPos + 'px';
       } else {
         tooltipEl.style.display = 'none';

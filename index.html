@@ -951,19 +951,6 @@
       opacity: 0.85;
     }
 
-    .guide-box {
-      background: rgba(0, 0, 0, 0.25);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 12px 14px;
-      font-size: 12.5px;
-      line-height: 1.5;
-      color: var(--text-muted);
-    }
-    .guide-box strong { color: var(--text-main); }
-    .guide-box ol { margin-left: 18px; margin-top: 6px; }
-    .guide-box li { margin-bottom: 4px; }
-
     /* Toast */
     .toast {
       position: fixed;
@@ -1092,21 +1079,6 @@
       <div class="btn-arrow">→</div>
     </div>
 
-    <!-- Secondary grid -->
-    <div class="grid-2">
-      <div class="btn-card" onclick="sendCommand('status')">
-        <div class="btn-card-icon">📊</div>
-        <div class="btn-card-title">Статус</div>
-        <div class="btn-card-desc">Дома, прибыль, стойки</div>
-      </div>
-
-      <div class="btn-card stop" onclick="sendCommand('stop')">
-        <div class="btn-card-icon">🛑</div>
-        <div class="btn-card-title">Остановить</div>
-        <div class="btn-card-desc">Экстренный стоп бота</div>
-      </div>
-    </div>
-
     <!-- Mining Telemetry -->
     <div class="telemetry-card">
       <div class="telemetry-header">
@@ -1160,16 +1132,6 @@
       <div id="farmHistoryList" class="farm-history-list">
         <!-- Rendered dynamically -->
       </div>
-    </div>
-
-    <!-- Quick info card -->
-    <div class="guide-box">
-      <strong>📌 Управление майнингом:</strong>
-      <ul>
-        <li>Нажатие запускает автоматический сбор через диалоги Arizona RP.</li>
-        <li>Автоконтроль охлаждающей жидкости активирует видеокарты при уровне жидкости > 0%.</li>
-        <li>Команды отправляются напрямую в скрипт через Telegram Bot API.</li>
-      </ul>
     </div>
   </section>
 
@@ -1378,10 +1340,6 @@
         <input type="text" id="chatIdInput" class="input-field" placeholder="Например: 123456789">
       </div>
 
-      <div style="font-size: 11.5px; color: #a5b4fc; background: rgba(99,102,241,0.12); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.25); line-height: 1.45;">
-        💡 <b>Подсказка:</b> Если база только создана, в ней ещё нет записей. В игре откройте <b>/mntg</b> и нажмите кнопку <b>[ Синхронизировать сейчас ]</b>, либо дождитесь PayDay, чтобы выгрузился первый отчёт!
-      </div>
-
       <button class="btn-action" onclick="saveCloudSettings()">
         💾 Сохранить и подключить
       </button>
@@ -1397,16 +1355,6 @@
       <button id="btnToggleDemo" class="btn-action" style="background: rgba(255,255,255,0.08); border: 1px solid var(--card-border);" onclick="toggleDemoMode()">
         Переключить демо-режим
       </button>
-    </div>
-
-    <div class="guide-box">
-      <strong>⚡ Быстрая настройка Firebase RTDB (3 минуты):</strong>
-      <ol>
-        <li>Перейдите на <b>console.firebase.google.com</b> и создайте бесплатный проект.</li>
-        <li>В меню слева выберите <b>Build ➔ Realtime Database</b> и нажмите <i>Создать базу данных</i>.</li>
-        <li>Во вкладке <b>Правила (Rules)</b> задайте <code>{".read": true, ".write": true}</code> и нажмите Опубликовать.</li>
-        <li>Скопируйте URL базы (вверху вкладки Данные) и вставьте его в поле выше, а также в игре в меню <code>/mntg</code>!</li>
-      </ol>
     </div>
   </section>
 

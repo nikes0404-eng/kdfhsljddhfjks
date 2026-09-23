@@ -1207,11 +1207,11 @@
     <div class="chart-card">
       <div class="chart-header">
         <div class="chart-title">
-          <h3 id="chartTitle">Доход по часам</h3>
-          <span id="chartSubtitle">Сегодня (00:00 - 23:00 МСК)</span>
+          <h3 id="chartTitle">Доход по чекам (каждые 30 мин)</h3>
+          <span id="chartSubtitle">Сегодня (00:00 - 23:30 МСК, до 48 чеков)</span>
         </div>
         <div class="range-selector">
-          <button id="rangeToday" class="range-btn active" onclick="setChartRange('today')">24ч</button>
+          <button id="rangeToday" class="range-btn active" onclick="setChartRange('today')">Сегодня (30 мин)</button>
           <button id="rangeWeek" class="range-btn" onclick="setChartRange('week')">7 дней</button>
           <button id="rangeMonth" class="range-btn" onclick="setChartRange('month')">30 дней</button>
         </div>
@@ -1631,10 +1631,29 @@
 
     function loadDemoData() {
       isDemo = true;
+      const halfHours = [];
+      for (let s = 0; s < 48; s++) {
+        const h = Math.floor(s / 2);
+        const m = (s % 2) * 30;
+        const isDaytime = (h >= 8 && h <= 23);
+        const total = isDaytime ? (600000 + Math.floor(Math.random() * 450000)) : 0;
+        const az = total > 0 ? (Math.random() > 0.4 ? 6 : 4) : 0;
+        halfHours.push({
+          slot: s,
+          hour: h,
+          minute: m,
+          label: String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'),
+          total: total,
+          az: az
+        });
+      }
+
       const hours = [];
       for (let h = 0; h < 24; h++) {
-        const total = (h >= 8 && h <= 23) ? (1200000 + Math.floor(Math.random() * 900000)) : 0;
-        const az = total > 0 ? (Math.random() > 0.4 ? 6 : 4) : 0;
+        const h1 = halfHours[h * 2];
+        const h2 = halfHours[h * 2 + 1];
+        const total = (h1 ? h1.total : 0) + (h2 ? h2.total : 0);
+        const az = (h1 ? h1.az : 0) + (h2 ? h2.az : 0);
         hours.push({ hour: h, hourStr: String(h).padStart(2, '0') + ':00', total: total, az: az });
       }
 
@@ -1657,14 +1676,14 @@
 
       const demo = {
         updatedAt: Date.now(),
-        updatedAtStr: '23.09.2026 22:00',
+        updatedAtStr: '23.09.2026 22:30',
         summary: {
           todayTotal: 18450000,
           todayAZ: 54,
           todaySalary: 10200000,
           todayDeposit: 6150000,
           todayBonus: 2100000,
-          todayCount: 9,
+          todayCount: 18,
           yesterdayTotal: 34200000,
           yesterdayAZ: 110,
           weekTotal: 198000000,
@@ -1672,15 +1691,16 @@
           monthTotal: 685000000,
           monthAZ: 2240
         },
+        halfHourlyToday: halfHours,
         hourlyToday: hours,
         dailyWeek: week,
         dailyMonth: month,
         recentPaydays: [
-          { timeStr: '22:00', dateStr: '2026-09-23', salary: 1250000, deposit: 750000, bonus: 250000, az: 6, total: 2250000 },
-          { timeStr: '21:00', dateStr: '2026-09-23', salary: 1250000, deposit: 750000, bonus: 200000, az: 6, total: 2200000 },
-          { timeStr: '20:00', dateStr: '2026-09-23', salary: 1200000, deposit: 750000, bonus: 150000, az: 6, total: 2100000 },
-          { timeStr: '19:00', dateStr: '2026-09-23', salary: 1200000, deposit: 750000, bonus: 100000, az: 6, total: 2050000 },
-          { timeStr: '18:00', dateStr: '2026-09-23', salary: 1150000, deposit: 750000, bonus: 100000, az: 6, total: 2000000 }
+          { timeStr: '22:30', dateStr: '2026-09-23', salary: 1250000, deposit: 750000, bonus: 250000, az: 6, total: 2250000 },
+          { timeStr: '22:00', dateStr: '2026-09-23', salary: 1250000, deposit: 750000, bonus: 200000, az: 6, total: 2200000 },
+          { timeStr: '21:30', dateStr: '2026-09-23', salary: 1200000, deposit: 750000, bonus: 150000, az: 6, total: 2100000 },
+          { timeStr: '21:00', dateStr: '2026-09-23', salary: 1200000, deposit: 750000, bonus: 100000, az: 6, total: 2050000 },
+          { timeStr: '20:30', dateStr: '2026-09-23', salary: 1150000, deposit: 750000, bonus: 100000, az: 6, total: 2000000 }
         ],
         mining: {
           active: false,
@@ -1948,8 +1968,8 @@
       const subtitle = document.getElementById('chartSubtitle');
 
       if (range === 'today') {
-        title.textContent = 'Доход по часам';
-        subtitle.textContent = 'Сегодня (00:00 - 23:00 МСК)';
+        title.textContent = 'Доход по чекам (каждые 30 мин)';
+        subtitle.textContent = 'Сегодня (00:00 - 23:30 МСК, до 48 чеков)';
       } else if (range === 'week') {
         title.textContent = 'Доход за 7 дней';
         subtitle.textContent = 'По дням недели';
@@ -1982,12 +2002,22 @@
 
       let dataset = [];
       if (currentRange === 'today') {
-        dataset = (appData.hourlyToday || []).map(h => ({
-          label: (h.hour % 3 === 0) ? String(h.hour) : '',
-          fullLabel: `${h.hourStr} (МСК)`,
-          val: h.total || 0,
-          az: h.az || 0
-        }));
+        const slots = appData.halfHourlyToday || [];
+        if (slots.length > 0) {
+          dataset = slots.map(s => ({
+            label: (s.minute === 0 && s.hour % 3 === 0) ? String(s.hour) : '',
+            fullLabel: `${s.label} (МСК)`,
+            val: s.total || 0,
+            az: s.az || 0
+          }));
+        } else {
+          dataset = (appData.hourlyToday || []).map(h => ({
+            label: (h.hour % 3 === 0) ? String(h.hour) : '',
+            fullLabel: `${h.hourStr} (МСК)`,
+            val: h.total || 0,
+            az: h.az || 0
+          }));
+        }
       } else if (currentRange === 'week') {
         dataset = (appData.dailyWeek || []).map(d => ({
           label: d.dayName,

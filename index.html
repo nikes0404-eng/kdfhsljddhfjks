@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MiningNextGen Remote</title>
+  <title>MiningNextGen Companion</title>
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
       --bg-color: #0b0c13;
-      --card-bg: rgba(22, 24, 38, 0.85);
+      --card-bg: rgba(22, 24, 38, 0.88);
       --card-border: rgba(157, 140, 255, 0.18);
       --text-main: #f3f4f6;
       --text-muted: #9ca3af;
       --accent: #9d8cff;
-      --accent-glow: rgba(157, 140, 255, 0.4);
+      --accent-glow: rgba(157, 140, 255, 0.35);
+      --accent-grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
       --success: #10b981;
       --success-glow: rgba(16, 185, 129, 0.35);
       --warning: #f59e0b;
@@ -22,6 +23,8 @@
       --danger: #ef4444;
       --danger-glow: rgba(239, 68, 68, 0.35);
       --cyan: #06b6d4;
+      --cyan-glow: rgba(6, 182, 212, 0.35);
+      --gold: #fbbf24;
     }
 
     * {
@@ -39,11 +42,11 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      padding: 16px;
+      padding: 16px 16px 85px 16px;
       overflow-x: hidden;
       background-image: 
-        radial-gradient(circle at 15% 10%, rgba(157, 140, 255, 0.12) 0%, transparent 40%),
-        radial-gradient(circle at 85% 90%, rgba(6, 182, 212, 0.08) 0%, transparent 45%);
+        radial-gradient(circle at 15% 10%, rgba(157, 140, 255, 0.14) 0%, transparent 40%),
+        radial-gradient(circle at 85% 90%, rgba(6, 182, 212, 0.10) 0%, transparent 45%);
     }
 
     /* Notices */
@@ -53,7 +56,7 @@
       border-radius: 12px;
       font-size: 13px;
       line-height: 1.45;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       backdrop-filter: blur(10px);
     }
     .banner-preview {
@@ -71,9 +74,10 @@
       margin-bottom: 4px;
       font-size: 14px;
     }
-    .banner a {
-      color: #93c5fd;
-      text-decoration: underline;
+    .banner code {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
     }
 
     /* Header */
@@ -81,8 +85,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
-      padding: 4px 2px;
+      margin-bottom: 16px;
+      padding: 2px 0;
     }
 
     .brand {
@@ -94,7 +98,7 @@
     .brand-icon {
       width: 42px;
       height: 42px;
-      background: linear-gradient(135deg, #7c3aed, #9d8cff);
+      background: var(--accent-grad);
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -104,7 +108,7 @@
     }
 
     .brand-text h1 {
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 700;
       letter-spacing: -0.3px;
       background: linear-gradient(180deg, #ffffff 30%, #c4b5fd 100%);
@@ -113,32 +117,58 @@
     }
 
     .brand-text span {
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--text-muted);
       letter-spacing: 0.5px;
       text-transform: uppercase;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .status-badge {
       display: flex;
       align-items: center;
       gap: 6px;
-      background: rgba(16, 185, 129, 0.1);
+      background: rgba(16, 185, 129, 0.12);
       border: 1px solid rgba(16, 185, 129, 0.3);
-      padding: 6px 12px;
+      padding: 6px 10px;
       border-radius: 20px;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 600;
       color: #34d399;
+      cursor: pointer;
+    }
+    .status-badge.demo {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+    }
+    .status-badge.offline {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #f87171;
     }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       background: var(--success);
       border-radius: 50%;
-      box-shadow: 0 0 8px var(--success);
+      box-shadow: 0 0 6px var(--success);
       animation: pulse 2s infinite ease-in-out;
+    }
+    .status-badge.demo .status-dot {
+      background: var(--warning);
+      box-shadow: 0 0 6px var(--warning);
+    }
+    .status-badge.offline .status-dot {
+      background: var(--danger);
+      box-shadow: 0 0 6px var(--danger);
+      animation: none;
     }
 
     @keyframes pulse {
@@ -146,17 +176,102 @@
       50% { opacity: 0.4; transform: scale(0.85); }
     }
 
-    /* Main Container */
-    .controls {
+    .btn-refresh {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
       display: flex;
-      flex-direction: column;
-      gap: 14px;
-      flex: 1;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .btn-refresh.spinning {
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
     }
 
-    /* Primary Action: Farm */
+    /* Tab navigation bar */
+    .tab-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(14, 16, 26, 0.95);
+      border-top: 1px solid rgba(157, 140, 255, 0.2);
+      backdrop-filter: blur(16px);
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)) 16px;
+      z-index: 90;
+      box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+      position: relative;
+      padding: 4px 16px;
+      border-radius: 12px;
+    }
+
+    .tab-item.active {
+      color: var(--accent);
+    }
+
+    .tab-item.active::before {
+      content: "";
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 3px;
+      background: var(--accent);
+      border-radius: 3px;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .tab-icon {
+      font-size: 20px;
+    }
+
+    .tab-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    /* Tab content panes */
+    .tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      animation: fadeIn 0.2s ease;
+    }
+    .tab-pane.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* TAB 1: Mining controls */
     .btn-main {
-      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+      background: var(--accent-grad);
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 16px;
       padding: 20px 18px;
@@ -167,21 +282,16 @@
       cursor: pointer;
       box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-      overflow: hidden;
     }
-
     .btn-main:active {
       transform: scale(0.98);
       box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
     }
-
     .btn-main-left {
       display: flex;
       align-items: center;
       gap: 14px;
     }
-
     .btn-main-icon {
       font-size: 28px;
       width: 48px;
@@ -192,25 +302,21 @@
       align-items: center;
       justify-content: center;
     }
-
     .btn-main-info h2 {
       font-size: 17px;
       font-weight: 700;
       margin-bottom: 2px;
     }
-
     .btn-main-info p {
       font-size: 13px;
       color: rgba(255, 255, 255, 0.75);
     }
-
     .btn-arrow {
       font-size: 20px;
       color: rgba(255, 255, 255, 0.7);
     }
 
-    /* Secondary Grid */
-    .grid {
+    .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
@@ -230,26 +336,21 @@
       backdrop-filter: blur(12px);
       transition: all 0.15s ease;
     }
-
     .btn-card:active {
       transform: scale(0.97);
       background: rgba(30, 33, 50, 0.95);
     }
-
     .btn-card-icon {
       font-size: 24px;
     }
-
     .btn-card-title {
       font-size: 15px;
       font-weight: 600;
     }
-
     .btn-card-desc {
       font-size: 12px;
       color: var(--text-muted);
     }
-
     .btn-card.stop {
       border-color: rgba(239, 68, 68, 0.25);
     }
@@ -257,58 +358,421 @@
       background: rgba(239, 68, 68, 0.15);
     }
 
-    /* Help Info Card */
-    .info-card {
+    /* Mining telemetry card */
+    .telemetry-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 14px;
       padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .telemetry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       font-size: 13px;
       color: var(--text-muted);
-      line-height: 1.5;
-      margin-top: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 8px;
     }
-
-    .info-card strong {
-      color: var(--text-main);
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
     }
-
-    .info-card ul {
-      margin-top: 8px;
-      padding-left: 18px;
+    .telemetry-stat {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      padding: 10px;
     }
-
-    .info-card li {
+    .telemetry-stat .label {
+      font-size: 11px;
+      color: var(--text-muted);
       margin-bottom: 4px;
     }
+    .telemetry-stat .val {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .telemetry-stat .val.gold { color: var(--gold); }
+    .telemetry-stat .val.cyan { color: var(--cyan); }
 
-    /* Toast Notification */
+    /* TAB 2: PayDay Analytics */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      backdrop-filter: blur(12px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 50px;
+      height: 50px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .kpi-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .kpi-badge {
+      font-size: 10.5px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-weight: 600;
+      background: rgba(157, 140, 255, 0.15);
+      color: var(--accent);
+    }
+    .kpi-badge.gold {
+      background: rgba(251, 191, 36, 0.15);
+      color: var(--gold);
+    }
+
+    .kpi-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Chart Section */
+    .chart-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      backdrop-filter: blur(12px);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chart-title h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .chart-title span {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .range-selector {
+      display: flex;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 10px;
+      padding: 3px;
+      gap: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .range-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .range-btn.active {
+      background: var(--accent);
+      color: #0b0c13;
+      box-shadow: 0 2px 8px var(--accent-glow);
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 190px;
+      margin-top: 4px;
+    }
+
+    canvas#paydayChart {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(11, 12, 19, 0.95);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #fff;
+      pointer-events: none;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+      display: none;
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    /* Breakdown Section */
+    .breakdown-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .breakdown-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .breakdown-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .breakdown-item-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12.5px;
+    }
+    .breakdown-item-name {
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .breakdown-item-val {
+      font-weight: 600;
+      color: #fff;
+    }
+    .bar-bg {
+      height: 7px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+    .bar-fill.salary { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+    .bar-fill.deposit { background: linear-gradient(90deg, #10b981, #34d399); }
+    .bar-fill.bonus { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+
+    /* Recent list */
+    .recent-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .recent-header {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .recent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .recent-item {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .recent-item-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .recent-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .recent-pills {
+      display: flex;
+      gap: 6px;
+      margin-top: 2px;
+      font-size: 10.5px;
+      color: #d1d5db;
+    }
+    .recent-pill {
+      background: rgba(255, 255, 255, 0.06);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .recent-item-right {
+      text-align: right;
+    }
+    .recent-amount {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #34d399;
+    }
+    .recent-az {
+      font-size: 11px;
+      color: var(--gold);
+    }
+
+    /* TAB 3: Settings */
+    .settings-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .settings-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .input-group label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .input-field {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(157, 140, 255, 0.25);
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .btn-action {
+      background: var(--accent-grad);
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      color: #fff;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.2s;
+    }
+    .btn-action:active {
+      opacity: 0.85;
+    }
+
+    .guide-box {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+    .guide-box strong { color: var(--text-main); }
+    .guide-box ol { margin-left: 18px; margin-top: 6px; }
+    .guide-box li { margin-bottom: 4px; }
+
+    /* Toast */
     .toast {
       position: fixed;
-      bottom: 24px;
+      bottom: 80px;
       left: 50%;
       transform: translateX(-50%) translateY(100px);
       background: rgba(15, 17, 26, 0.95);
       border: 1px solid var(--accent);
       color: var(--text-main);
-      padding: 12px 24px;
+      padding: 10px 20px;
       border-radius: 25px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px var(--accent-glow);
       transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       z-index: 100;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       pointer-events: none;
     }
-
     .toast.show {
       transform: translateX(-50%) translateY(0);
     }
 
-    /* Modal dialog */
+    /* Modal for Menu button */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -336,13 +800,13 @@
       margin-bottom: 10px;
     }
     .modal-box p {
-      font-size: 13.5px;
+      font-size: 13px;
       color: #d1d5db;
       line-height: 1.5;
       margin-bottom: 18px;
     }
     .modal-btn {
-      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      background: var(--accent-grad);
       border: none;
       border-radius: 10px;
       padding: 12px 20px;
@@ -352,29 +816,19 @@
       width: 100%;
       cursor: pointer;
     }
-
-    /* Footer */
-    footer {
-      margin-top: auto;
-      padding-top: 16px;
-      text-align: center;
-      font-size: 11px;
-      color: rgba(156, 163, 175, 0.6);
-    }
   </style>
 </head>
 <body>
 
-  <!-- Notice: Browser preview mode -->
+  <!-- Notices -->
   <div id="previewNotice" class="banner banner-preview">
     <strong>💡 Режим предпросмотра</strong>
-    Открыто в обычном браузере вне Telegram. В Telegram команды будут мгновенно передаваться в игру.
+    Открыто в обычном браузере. Вы можете настраивать Cloud URL и переключать режимы.
   </div>
 
-  <!-- Notice: Opened from Menu Button warning -->
   <div id="menuNotice" class="banner banner-warning">
     <strong>⚠️ Открыто через кнопку Menu</strong>
-    Telegram блокирует отправку данных из кнопки меню. Пожалуйста, откройте чат с ботом, отправьте <code>/start</code> и используйте кнопку <b>«⚡ Пульт управления»</b> на клавиатуре чата.
+    Для прямого запуска сбора ферм открывайте пульт через кнопку <b>«⚡ Пульт и аналитика»</b> на клавиатуре чата.
   </div>
 
   <!-- Header -->
@@ -383,18 +837,23 @@
       <div class="brand-icon">⚡</div>
       <div class="brand-text">
         <h1>MiningNextGen</h1>
-        <span>FlashMiner Remote</span>
+        <span>Ultimate Companion</span>
       </div>
     </div>
-    <div class="status-badge">
-      <div class="status-dot"></div>
-      <span id="connStatus">Готов</span>
+    <div class="header-actions">
+      <div id="syncBadge" class="status-badge" onclick="switchTab('settings')">
+        <div class="status-dot"></div>
+        <span id="syncText">Синхронизация</span>
+      </div>
+      <div id="btnRefresh" class="btn-refresh" onclick="refreshData()" title="Обновить">
+        🔄
+      </div>
     </div>
   </header>
 
-  <!-- Action Controls -->
-  <main class="controls">
-    <!-- Primary action: Farm -->
+  <!-- ==================== TAB 1: MINING ==================== -->
+  <section id="tabMining" class="tab-pane active">
+    <!-- Big Primary Action -->
     <div class="btn-main" onclick="sendCommand('farm')">
       <div class="btn-main-left">
         <div class="btn-main-icon">🚀</div>
@@ -407,7 +866,7 @@
     </div>
 
     <!-- Secondary grid -->
-    <div class="grid">
+    <div class="grid-2">
       <div class="btn-card" onclick="sendCommand('status')">
         <div class="btn-card-icon">📊</div>
         <div class="btn-card-title">Статус</div>
@@ -421,34 +880,233 @@
       </div>
     </div>
 
-    <!-- Quick Info -->
-    <div class="info-card">
-      <strong>📌 Как это работает:</strong>
+    <!-- Mining Telemetry -->
+    <div class="telemetry-card">
+      <div class="telemetry-header">
+        <span>Текущая телеметрия ферм</span>
+        <span id="miningActiveStatus">Готов к работе</span>
+      </div>
+      <div class="telemetry-grid">
+        <div class="telemetry-stat">
+          <div class="label">Собрано Bitcoin</div>
+          <div id="mineBtc" class="val gold">0.0000 BTC</div>
+        </div>
+        <div class="telemetry-stat">
+          <div class="label">Собрано ASC</div>
+          <div id="mineAsc" class="val cyan">0.00 ASC</div>
+        </div>
+        <div class="telemetry-stat">
+          <div class="label">Запущено стоек</div>
+          <div id="mineStarted" class="val">0</div>
+        </div>
+        <div class="telemetry-stat">
+          <div class="label">Домов в очереди</div>
+          <div id="mineHouses" class="val">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick info card -->
+    <div class="guide-box">
+      <strong>📌 Управление майнингом:</strong>
       <ul>
-        <li>Нажатие кнопки передаёт команду прямо в скрипт через Telegram.</li>
-        <li>После запуска окно пульта закроется, а бот пришлёт отчёт в чат.</li>
-        <li>Контроль охлаждающей жидкости и сбор криптовалюты полностью автоматизированы.</li>
+        <li>Нажатие запускает автоматический сбор через диалоги Arizona RP.</li>
+        <li>Автоконтроль охлаждающей жидкости активирует видеокарты при уровне жидкости > 0%.</li>
+        <li>Команды отправляются напрямую в скрипт через Telegram Bot API.</li>
       </ul>
     </div>
-  </main>
+  </section>
 
-  <footer>
-    MiningNextGen v1.3.1 • GTA:SA Arizona RP
-  </footer>
+  <!-- ==================== TAB 2: PAYDAY ==================== -->
+  <section id="tabPayday" class="tab-pane">
+    <!-- KPI Summary Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Сегодня</span>
+          <span id="kpiTodayCount" class="kpi-badge">0 чеков</span>
+        </div>
+        <div id="kpiTodayTotal" class="kpi-value">$0</div>
+        <div class="kpi-sub">
+          <span>💎</span>
+          <span id="kpiTodayAZ">+0 AZ</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Вчера</span>
+        </div>
+        <div id="kpiYesterdayTotal" class="kpi-value">$0</div>
+        <div class="kpi-sub">
+          <span>💎</span>
+          <span id="kpiYesterdayAZ">+0 AZ</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">За 7 дней</span>
+        </div>
+        <div id="kpiWeekTotal" class="kpi-value">$0</div>
+        <div class="kpi-sub">
+          <span>💎</span>
+          <span id="kpiWeekAZ">+0 AZ</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">За 30 дней</span>
+        </div>
+        <div id="kpiMonthTotal" class="kpi-value">$0</div>
+        <div class="kpi-sub">
+          <span>💎</span>
+          <span id="kpiMonthAZ">+0 AZ</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">
+          <h3 id="chartTitle">Доход по часам</h3>
+          <span id="chartSubtitle">Сегодня (00:00 - 23:00 МСК)</span>
+        </div>
+        <div class="range-selector">
+          <button id="rangeToday" class="range-btn active" onclick="setChartRange('today')">24ч</button>
+          <button id="rangeWeek" class="range-btn" onclick="setChartRange('week')">7 дней</button>
+          <button id="rangeMonth" class="range-btn" onclick="setChartRange('month')">30 дней</button>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="paydayChart"></canvas>
+        <div id="chartTooltip" class="chart-tooltip"></div>
+      </div>
+    </div>
+
+    <!-- Income Sources Breakdown -->
+    <div class="breakdown-card">
+      <div class="breakdown-title">
+        <span>📊 Структура дохода (Сегодня)</span>
+      </div>
+
+      <div class="breakdown-item">
+        <div class="breakdown-item-header">
+          <span class="breakdown-item-name">💼 Зарплата во фракции</span>
+          <span id="breakdownSalaryVal" class="breakdown-item-val">$0 (0%)</span>
+        </div>
+        <div class="bar-bg">
+          <div id="breakdownSalaryBar" class="bar-fill salary" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div class="breakdown-item">
+        <div class="breakdown-item-header">
+          <span class="breakdown-item-name">🏦 Проценты с депозита</span>
+          <span id="breakdownDepositVal" class="breakdown-item-val">$0 (0%)</span>
+        </div>
+        <div class="bar-bg">
+          <div id="breakdownDepositBar" class="bar-fill deposit" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div class="breakdown-item">
+        <div class="breakdown-item-header">
+          <span class="breakdown-item-name">👑 Семья и аксессуары</span>
+          <span id="breakdownBonusVal" class="breakdown-item-val">$0 (0%)</span>
+        </div>
+        <div class="bar-bg">
+          <div id="breakdownBonusBar" class="bar-fill bonus" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent PayDay History -->
+    <div class="recent-card">
+      <div class="recent-header">
+        <span>🕒 Последние чеки</span>
+      </div>
+      <div id="recentList" class="recent-list">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB 3: SETTINGS ==================== -->
+  <section id="tabSettings" class="tab-pane">
+    <div class="settings-card">
+      <div class="settings-title">
+        <span>☁️ Облачная база данных</span>
+      </div>
+      <p style="font-size: 12.5px; color: var(--text-muted); line-height: 1.4;">
+        Подключите бесплатную базу Firebase Realtime Database для просмотра статистики с телефона в любое время, даже если ПК выключен.
+      </p>
+
+      <div class="input-group">
+        <label for="cloudUrlInput">Firebase Realtime Database URL:</label>
+        <input type="text" id="cloudUrlInput" class="input-field" placeholder="https://xxx-default-rtdb.firebaseio.com">
+      </div>
+
+      <button class="btn-action" onclick="saveCloudSettings()">
+        💾 Сохранить и подключить
+      </button>
+    </div>
+
+    <div class="settings-card">
+      <div class="settings-title">
+        <span>💡 Демо-режим</span>
+      </div>
+      <p style="font-size: 12.5px; color: var(--text-muted); line-height: 1.4;">
+        Включите демонстрационные данные для предварительного просмотра графиков и статистики до настройки связи с игрой.
+      </p>
+      <button id="btnToggleDemo" class="btn-action" style="background: rgba(255,255,255,0.08); border: 1px solid var(--card-border);" onclick="toggleDemoMode()">
+        Переключить демо-режим
+      </button>
+    </div>
+
+    <div class="guide-box">
+      <strong>⚡ Быстрая настройка Firebase RTDB (3 минуты):</strong>
+      <ol>
+        <li>Перейдите на <b>console.firebase.google.com</b> и создайте бесплатный проект.</li>
+        <li>В меню слева выберите <b>Build ➔ Realtime Database</b> и нажмите <i>Создать базу данных</i>.</li>
+        <li>Во вкладке <b>Правила (Rules)</b> задайте <code>{".read": true, ".write": true}</code> и нажмите Опубликовать.</li>
+        <li>Скопируйте URL базы (вверху вкладки Данные) и вставьте его в поле выше, а также в игре в меню <code>/mntg</code>!</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Navigation Tab Bar -->
+  <nav class="tab-nav">
+    <div class="tab-item active" onclick="switchTab('mining')">
+      <div class="tab-icon">⚡</div>
+      <div class="tab-label">Майнинг</div>
+    </div>
+    <div class="tab-item" onclick="switchTab('payday')">
+      <div class="tab-icon">📊</div>
+      <div class="tab-label">PayDay</div>
+    </div>
+    <div class="tab-item" onclick="switchTab('settings')">
+      <div class="tab-icon">⚙️</div>
+      <div class="tab-label">Настройки</div>
+    </div>
+  </nav>
 
   <!-- Toast -->
   <div id="toast" class="toast">
-    <span>⚡</span>
+    <span id="toastIcon">⚡</span>
     <span id="toastText">Команда отправлена</span>
   </div>
 
-  <!-- Modal for Menu Button warning -->
+  <!-- Menu button warning modal -->
   <div id="menuModal" class="modal-overlay">
     <div class="modal-box">
       <h3>⚠️ Ограничение Telegram</h3>
       <p>
-        Вы открыли пульт через <b>кнопку Menu</b> внизу слева. В этом режиме Telegram не позволяет отправлять команды боту без выделенного сервера.<br><br>
-        Чтобы пульт работал напрямую, отправьте боту команду <b>/start</b> и нажимайте кнопку <b>«⚡ Пульт управления»</b> прямо на клавиатуре чата!
+        Вы открыли пульт через кнопку Menu внизу чата. В этом режиме Telegram не позволяет отправлять команды боту без выделенного сервера.<br><br>
+        Чтобы кнопки запуска работали, отправьте боту команду <b>/start</b> и нажимайте кнопку <b>«⚡ Пульт и аналитика»</b> прямо на клавиатуре чата!
       </p>
       <button class="modal-btn" onclick="closeModalAndApp()">Понятно, открыть чат</button>
     </div>
@@ -456,14 +1114,15 @@
 
   <script>
     const tg = window.Telegram?.WebApp;
-    // Check if running inside Telegram WebApp
     const isTg = !!(tg && typeof tg.ready === 'function');
-
-    // According to Telegram WebApp Bot API documentation:
-    // WebAppInitData is empty when launched from a KeyboardButton
-    const isFromKeyboard = isTg && (!tg.initData || tg.initData.length === 0);
     const isFromMenu = isTg && tg.initData && tg.initData.length > 0;
 
+    let activeTab = 'mining';
+    let currentRange = 'today';
+    let appData = null;
+    let isDemo = false;
+
+    // Initialize Telegram WebApp
     if (isTg) {
       tg.ready();
       tg.expand();
@@ -471,34 +1130,93 @@
       if (tg.setBackgroundColor) tg.setBackgroundColor('#0b0c13');
 
       if (isFromMenu) {
-        // Show notice when opened from Menu button
         const menuNotice = document.getElementById('menuNotice');
         if (menuNotice) menuNotice.style.display = 'block';
+      }
+
+      // BackButton handling
+      if (tg.BackButton) {
+        tg.BackButton.onClick(() => {
+          if (activeTab !== 'mining') {
+            switchTab('mining');
+          } else {
+            tg.close();
+          }
+        });
       }
     } else {
       const prev = document.getElementById('previewNotice');
       if (prev) prev.style.display = 'block';
     }
 
-    function showToast(text) {
+    // Money formatter
+    function fmtMoney(num) {
+      num = Number(num) || 0;
+      return '$' + Math.floor(num).toLocaleString('ru-RU');
+    }
+    function fmtShort(num) {
+      num = Number(num) || 0;
+      if (num >= 1000000000) return '$' + (num / 1000000000).toFixed(1) + 'B';
+      if (num >= 1000000) return '$' + (num / 1000000).toFixed(1) + 'M';
+      if (num >= 1000) return '$' + (num / 1000).toFixed(0) + 'K';
+      return '$' + num;
+    }
+
+    function showToast(text, icon = '⚡') {
       const toast = document.getElementById('toast');
-      const toastText = document.getElementById('toastText');
-      toastText.textContent = text;
+      document.getElementById('toastIcon').textContent = icon;
+      document.getElementById('toastText').textContent = text;
       toast.classList.add('show');
       setTimeout(() => {
         toast.classList.remove('show');
-      }, 2000);
+      }, 2200);
     }
 
     function closeModalAndApp() {
       document.getElementById('menuModal').style.display = 'none';
-      if (isTg && tg.close) {
-        tg.close();
+      if (isTg && tg.close) tg.close();
+    }
+
+    // Tab switcher
+    function switchTab(tabName) {
+      if (activeTab === tabName) return;
+      activeTab = tabName;
+
+      // Haptic
+      if (isTg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+
+      // Update BackButton
+      if (isTg && tg.BackButton) {
+        if (tabName !== 'mining') {
+          tg.BackButton.show();
+        } else {
+          tg.BackButton.hide();
+        }
+      }
+
+      // Update nav items
+      const tabItems = document.querySelectorAll('.tab-item');
+      tabItems.forEach((item, idx) => {
+        const names = ['mining', 'payday', 'settings'];
+        if (names[idx] === tabName) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+
+      // Update panes
+      document.getElementById('tabMining').classList.toggle('active', tabName === 'mining');
+      document.getElementById('tabPayday').classList.toggle('active', tabName === 'payday');
+      document.getElementById('tabSettings').classList.toggle('active', tabName === 'settings');
+
+      if (tabName === 'payday') {
+        setTimeout(renderChart, 50);
       }
     }
 
+    // Send Command to Bot
     function sendCommand(cmd) {
-      // Haptic feedback
       if (isTg && tg.HapticFeedback) {
         if (cmd === 'stop') {
           tg.HapticFeedback.notificationOccurred('warning');
@@ -510,7 +1228,6 @@
       }
 
       if (isFromMenu) {
-        // When launched from Menu Button, Telegram blocks sendData()
         document.getElementById('menuModal').style.display = 'flex';
         return;
       }
@@ -520,16 +1237,430 @@
       if (isTg) {
         setTimeout(() => {
           try {
-            // Sends data directly back to the bot (allowed only for KeyboardButton)
             tg.sendData(cmd);
           } catch (e) {
-            console.error('Error sending data to Telegram:', e);
+            console.error('Error sending data:', e);
           }
         }, 150);
       } else {
-        console.log(`[Preview Mode] Command sent: ${cmd}`);
+        console.log(`[Preview] Command sent: ${cmd}`);
       }
     }
+
+    // ==================== DATA SYNC & RENDERING ====================
+    function getCloudUrl() {
+      // 1. From URL param ?cloud=...
+      const urlParams = new URLSearchParams(window.location.search);
+      const qCloud = urlParams.get('cloud');
+      if (qCloud) {
+        localStorage.setItem('mng_cloud_url', qCloud);
+        return qCloud;
+      }
+      // 2. From localStorage
+      return localStorage.getItem('mng_cloud_url') || '';
+    }
+
+    function saveCloudSettings() {
+      const inp = document.getElementById('cloudUrlInput').value.trim();
+      if (!inp) {
+        showToast('Введите корректный URL!', '⚠️');
+        return;
+      }
+      localStorage.setItem('mng_cloud_url', inp);
+      showToast('Cloud URL сохранён!', '✅');
+      isDemo = false;
+      refreshData();
+    }
+
+    function toggleDemoMode() {
+      isDemo = !isDemo;
+      if (isDemo) {
+        loadDemoData();
+        showToast('Включен демо-режим', '💡');
+      } else {
+        refreshData();
+      }
+    }
+
+    async function refreshData() {
+      const btn = document.getElementById('btnRefresh');
+      btn.classList.add('spinning');
+      if (isTg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+
+      const cloudUrl = getCloudUrl();
+      document.getElementById('cloudUrlInput').value = cloudUrl;
+
+      if (!cloudUrl && !isDemo) {
+        // No cloud configured, fallback to demo
+        btn.classList.remove('spinning');
+        loadDemoData();
+        return;
+      }
+
+      if (isDemo) {
+        btn.classList.remove('spinning');
+        loadDemoData();
+        return;
+      }
+
+      try {
+        let fetchUrl = cloudUrl;
+        if (!fetchUrl.includes('.json')) {
+          fetchUrl = fetchUrl.replace(/\/+$/, '') + '/users/default.json';
+        }
+
+        const resp = await fetch(fetchUrl, { cache: 'no-cache' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+
+        if (data && typeof data === 'object') {
+          appData = data;
+          updateUI(data);
+          updateSyncStatus('online', 'Онлайн (' + (data.updatedAtStr ? data.updatedAtStr.split(' ')[1] : 'сейчас') + ')');
+          showToast('Данные обновлены', '✅');
+        } else {
+          throw new Error('Пустые данные');
+        }
+      } catch (err) {
+        console.warn('Sync failed:', err);
+        updateSyncStatus('offline', 'Офлайн (ошибка)');
+        showToast('Ошибка загрузки данных', '⚠️');
+        if (!appData) loadDemoData();
+      } finally {
+        btn.classList.remove('spinning');
+      }
+    }
+
+    function updateSyncStatus(status, text) {
+      const badge = document.getElementById('syncBadge');
+      const label = document.getElementById('syncText');
+      badge.className = 'status-badge ' + status;
+      label.textContent = text;
+    }
+
+    function loadDemoData() {
+      isDemo = true;
+      const hours = [];
+      for (let h = 0; h < 24; h++) {
+        const total = (h >= 8 && h <= 23) ? (1200000 + Math.floor(Math.random() * 900000)) : 0;
+        const az = total > 0 ? (Math.random() > 0.4 ? 6 : 4) : 0;
+        hours.push({ hour: h, hourStr: String(h).padStart(2, '0') + ':00', total: total, az: az });
+      }
+
+      const daysOfWeek = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      const week = daysOfWeek.map((d, i) => ({
+        dayName: d,
+        date: '2026-09-' + (17 + i),
+        total: 18000000 + Math.floor(Math.random() * 14000000),
+        az: 50 + Math.floor(Math.random() * 30)
+      }));
+
+      const month = [];
+      for (let d = 1; d <= 30; d++) {
+        month.push({
+          label: String(d).padStart(2, '0') + '.09',
+          total: 15000000 + Math.floor(Math.random() * 16000000),
+          az: 45 + Math.floor(Math.random() * 35)
+        });
+      }
+
+      const demo = {
+        updatedAt: Date.now(),
+        updatedAtStr: '23.09.2026 22:00',
+        summary: {
+          todayTotal: 18450000,
+          todayAZ: 54,
+          todaySalary: 10200000,
+          todayDeposit: 6150000,
+          todayBonus: 2100000,
+          todayCount: 9,
+          yesterdayTotal: 34200000,
+          yesterdayAZ: 110,
+          weekTotal: 198000000,
+          weekAZ: 620,
+          monthTotal: 685000000,
+          monthAZ: 2240
+        },
+        hourlyToday: hours,
+        dailyWeek: week,
+        dailyMonth: month,
+        recentPaydays: [
+          { timeStr: '22:00', dateStr: '2026-09-23', salary: 1250000, deposit: 750000, bonus: 250000, az: 6, total: 2250000 },
+          { timeStr: '21:00', dateStr: '2026-09-23', salary: 1250000, deposit: 750000, bonus: 200000, az: 6, total: 2200000 },
+          { timeStr: '20:00', dateStr: '2026-09-23', salary: 1200000, deposit: 750000, bonus: 150000, az: 6, total: 2100000 },
+          { timeStr: '19:00', dateStr: '2026-09-23', salary: 1200000, deposit: 750000, bonus: 100000, az: 6, total: 2050000 },
+          { timeStr: '18:00', dateStr: '2026-09-23', salary: 1150000, deposit: 750000, bonus: 100000, az: 6, total: 2000000 }
+        ],
+        mining: {
+          active: false,
+          btc: 0.0845,
+          asc: 14.20,
+          started: 8,
+          housesCount: 4
+        }
+      };
+
+      appData = demo;
+      updateUI(demo);
+      updateSyncStatus('demo', 'Демо-режим');
+    }
+
+    function updateUI(data) {
+      if (!data) return;
+
+      // 1. Mining tab
+      if (data.mining) {
+        document.getElementById('mineBtc').textContent = (data.mining.btc || 0).toFixed(4) + ' BTC';
+        document.getElementById('mineAsc').textContent = (data.mining.asc || 0).toFixed(2) + ' ASC';
+        document.getElementById('mineStarted').textContent = data.mining.started || 0;
+        document.getElementById('mineHouses').textContent = data.mining.housesCount || 0;
+        document.getElementById('miningActiveStatus').textContent = data.mining.active ? '⚡ Сбор активен' : 'Готов к работе';
+      }
+
+      // 2. Payday KPI Cards
+      const s = data.summary || {};
+      document.getElementById('kpiTodayTotal').textContent = fmtShort(s.todayTotal);
+      document.getElementById('kpiTodayAZ').textContent = '+' + (s.todayAZ || 0) + ' AZ';
+      document.getElementById('kpiTodayCount').textContent = (s.todayCount || 0) + ' чеков';
+
+      document.getElementById('kpiYesterdayTotal').textContent = fmtShort(s.yesterdayTotal);
+      document.getElementById('kpiYesterdayAZ').textContent = '+' + (s.yesterdayAZ || 0) + ' AZ';
+
+      document.getElementById('kpiWeekTotal').textContent = fmtShort(s.weekTotal);
+      document.getElementById('kpiWeekAZ').textContent = '+' + (s.weekAZ || 0) + ' AZ';
+
+      document.getElementById('kpiMonthTotal').textContent = fmtShort(s.monthTotal);
+      document.getElementById('kpiMonthAZ').textContent = '+' + (s.monthAZ || 0) + ' AZ';
+
+      // 3. Breakdown
+      const todayTotal = s.todayTotal || 1;
+      const sal = s.todaySalary || 0;
+      const dep = s.todayDeposit || 0;
+      const bon = s.todayBonus || 0;
+
+      const salPct = Math.round((sal / todayTotal) * 100);
+      const depPct = Math.round((dep / todayTotal) * 100);
+      const bonPct = Math.max(0, 100 - salPct - depPct);
+
+      document.getElementById('breakdownSalaryVal').textContent = `${fmtShort(sal)} (${salPct}%)`;
+      document.getElementById('breakdownSalaryBar').style.width = salPct + '%';
+
+      document.getElementById('breakdownDepositVal').textContent = `${fmtShort(dep)} (${depPct}%)`;
+      document.getElementById('breakdownDepositBar').style.width = depPct + '%';
+
+      document.getElementById('breakdownBonusVal').textContent = `${fmtShort(bon)} (${bonPct}%)`;
+      document.getElementById('breakdownBonusBar').style.width = bonPct + '%';
+
+      // 4. Recent history
+      const listContainer = document.getElementById('recentList');
+      listContainer.innerHTML = '';
+      const recent = data.recentPaydays || [];
+
+      if (recent.length === 0) {
+        listContainer.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">Чеков пока нет</div>';
+      } else {
+        recent.forEach(r => {
+          const item = document.createElement('div');
+          item.className = 'recent-item';
+          item.innerHTML = `
+            <div class="recent-item-left">
+              <span class="recent-time">🕒 ${r.timeStr || '--:--'} МСК (${r.dateStr || ''})</span>
+              <div class="recent-pills">
+                <span class="recent-pill">💼 ${fmtShort(r.salary)}</span>
+                <span class="recent-pill">🏦 ${fmtShort(r.deposit)}</span>
+                ${r.bonus ? `<span class="recent-pill">👑 ${fmtShort(r.bonus)}</span>` : ''}
+              </div>
+            </div>
+            <div class="recent-item-right">
+              <div class="recent-amount">+${fmtShort(r.total)}</div>
+              <div class="recent-az">+${r.az || 0} AZ</div>
+            </div>
+          `;
+          listContainer.appendChild(item);
+        });
+      }
+
+      // 5. Chart
+      renderChart();
+    }
+
+    // ==================== INTERACTIVE CANVAS CHART ====================
+    function setChartRange(range) {
+      if (currentRange === range) return;
+      currentRange = range;
+
+      if (isTg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+
+      document.getElementById('rangeToday').classList.toggle('active', range === 'today');
+      document.getElementById('rangeWeek').classList.toggle('active', range === 'week');
+      document.getElementById('rangeMonth').classList.toggle('active', range === 'month');
+
+      const title = document.getElementById('chartTitle');
+      const subtitle = document.getElementById('chartSubtitle');
+
+      if (range === 'today') {
+        title.textContent = 'Доход по часам';
+        subtitle.textContent = 'Сегодня (00:00 - 23:00 МСК)';
+      } else if (range === 'week') {
+        title.textContent = 'Доход за 7 дней';
+        subtitle.textContent = 'По дням недели';
+      } else {
+        title.textContent = 'Доход за 30 дней';
+        subtitle.textContent = 'Динамика за последний месяц';
+      }
+
+      renderChart();
+    }
+
+    let chartBars = [];
+
+    function renderChart() {
+      const canvas = document.getElementById('paydayChart');
+      if (!canvas || !appData) return;
+
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const width = rect.width;
+      const height = rect.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      let dataset = [];
+      if (currentRange === 'today') {
+        dataset = (appData.hourlyToday || []).map(h => ({
+          label: (h.hour % 3 === 0) ? String(h.hour) : '',
+          fullLabel: `${h.hourStr} (МСК)`,
+          val: h.total || 0,
+          az: h.az || 0
+        }));
+      } else if (currentRange === 'week') {
+        dataset = (appData.dailyWeek || []).map(d => ({
+          label: d.dayName,
+          fullLabel: `${d.dayName} (${d.date})`,
+          val: d.total || 0,
+          az: d.az || 0
+        }));
+      } else {
+        dataset = (appData.dailyMonth || []).map((m, idx) => ({
+          label: (idx % 5 === 0) ? m.label : '',
+          fullLabel: m.label,
+          val: m.total || 0,
+          az: m.az || 0
+        }));
+      }
+
+      if (dataset.length === 0) return;
+
+      const maxVal = Math.max(...dataset.map(d => d.val), 100000);
+      const paddingBottom = 26;
+      const paddingTop = 16;
+      const chartH = height - paddingBottom - paddingTop;
+      const barSpacing = width / dataset.length;
+      const barW = Math.max(3, barSpacing * 0.65);
+
+      chartBars = [];
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 3; i++) {
+        const gy = paddingTop + (chartH * (i / 4));
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(width, gy);
+        ctx.stroke();
+      }
+
+      // Draw Bars
+      dataset.forEach((d, i) => {
+        const x = i * barSpacing + (barSpacing - barW) / 2;
+        const barHeight = Math.max(3, (d.val / maxVal) * chartH);
+        const y = height - paddingBottom - barHeight;
+
+        chartBars.push({
+          x: x,
+          y: y,
+          w: barW,
+          h: barHeight,
+          data: d
+        });
+
+        // Bar gradient
+        const grad = ctx.createLinearGradient(0, y, 0, y + barHeight);
+        if (d.val > 0) {
+          grad.addColorStop(0, '#9d8cff');
+          grad.addColorStop(1, '#6366f1');
+        } else {
+          grad.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
+          grad.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
+        }
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        const r = Math.min(barW / 2, 4);
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + barW - r, y);
+        ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+        ctx.lineTo(x + barW, y + barHeight);
+        ctx.lineTo(x, y + barHeight);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        ctx.fill();
+
+        // Label below
+        if (d.label) {
+          ctx.fillStyle = '#9ca3af';
+          ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(d.label, x + barW / 2, height - 8);
+        }
+      });
+    }
+
+    // Chart touch & click handler
+    const canvasEl = document.getElementById('paydayChart');
+    const tooltipEl = document.getElementById('chartTooltip');
+
+    function handleChartTouch(evt) {
+      const rect = canvasEl.getBoundingClientRect();
+      const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+      const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+      const touchX = clientX - rect.left;
+      const touchY = clientY - rect.top;
+
+      let found = null;
+      for (const bar of chartBars) {
+        if (touchX >= bar.x - 4 && touchX <= bar.x + bar.w + 4) {
+          found = bar;
+          break;
+        }
+      }
+
+      if (found && found.data) {
+        if (isTg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        tooltipEl.style.display = 'block';
+        tooltipEl.innerHTML = `<b>${found.data.fullLabel}</b>: ${fmtMoney(found.data.val)} • 💎 +${found.data.az} AZ`;
+
+        const leftPos = Math.max(70, Math.min(rect.width - 70, found.x + found.w / 2));
+        tooltipEl.style.left = leftPos + 'px';
+      } else {
+        tooltipEl.style.display = 'none';
+      }
+    }
+
+    canvasEl.addEventListener('touchstart', handleChartTouch);
+    canvasEl.addEventListener('touchmove', handleChartTouch);
+    canvasEl.addEventListener('click', handleChartTouch);
+
+    // Initial launch
+    refreshData();
   </script>
 </body>
 </html>

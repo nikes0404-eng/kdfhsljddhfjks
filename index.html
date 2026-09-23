@@ -2,14 +2,14 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>MiningNextGen Control Panel</title>
-  <!-- Telegram Web App SDK -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MiningNextGen Remote</title>
+  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
       --bg-color: #0b0c13;
-      --card-bg: rgba(22, 24, 38, 0.75);
+      --card-bg: rgba(22, 24, 38, 0.85);
       --card-border: rgba(157, 140, 255, 0.18);
       --text-main: #f3f4f6;
       --text-muted: #9ca3af;
@@ -18,6 +18,7 @@
       --success: #10b981;
       --success-glow: rgba(16, 185, 129, 0.35);
       --warning: #f59e0b;
+      --warning-glow: rgba(245, 158, 11, 0.35);
       --danger: #ef4444;
       --danger-glow: rgba(239, 68, 68, 0.35);
       --cyan: #06b6d4;
@@ -45,56 +46,86 @@
         radial-gradient(circle at 85% 90%, rgba(6, 182, 212, 0.08) 0%, transparent 45%);
     }
 
+    /* Notices */
+    .banner {
+      display: none;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+    }
+    .banner-preview {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fde68a;
+    }
+    .banner-warning {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+    .banner strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+    .banner a {
+      color: #93c5fd;
+      text-decoration: underline;
+    }
+
     /* Header */
     .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 20px;
-      padding: 8px 4px;
+      padding: 4px 2px;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
     .brand-icon {
-      width: 38px;
-      height: 38px;
+      width: 42px;
+      height: 42px;
       background: linear-gradient(135deg, #7c3aed, #9d8cff);
-      border-radius: 10px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
-      box-shadow: 0 4px 16px var(--accent-glow);
+      font-size: 22px;
+      box-shadow: 0 4px 14px var(--accent-glow);
     }
 
     .brand-text h1 {
-      font-size: 17px;
+      font-size: 19px;
       font-weight: 700;
-      letter-spacing: 0.5px;
-      background: linear-gradient(90deg, #ffffff, #c4b5fd);
+      letter-spacing: -0.3px;
+      background: linear-gradient(180deg, #ffffff 30%, #c4b5fd 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
     .brand-text span {
-      font-size: 11px;
+      font-size: 12px;
       color: var(--text-muted);
+      letter-spacing: 0.5px;
       text-transform: uppercase;
-      letter-spacing: 1px;
     }
 
     .status-badge {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 12px;
-      background: rgba(16, 185, 129, 0.12);
+      background: rgba(16, 185, 129, 0.1);
       border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 6px 12px;
       border-radius: 20px;
       font-size: 12px;
       font-weight: 600;
@@ -102,12 +133,12 @@
     }
 
     .status-dot {
-      width: 7px;
-      height: 7px;
-      background: #10b981;
+      width: 8px;
+      height: 8px;
+      background: var(--success);
       border-radius: 50%;
-      box-shadow: 0 0 8px #10b981;
-      animation: pulse 2s infinite;
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite ease-in-out;
     }
 
     @keyframes pulse {
@@ -115,211 +146,235 @@
       50% { opacity: 0.4; transform: scale(0.85); }
     }
 
-    /* Cards Grid */
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 22px;
-    }
-
-    .stat-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 14px;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-    }
-
-    .stat-label {
-      font-size: 11px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-    }
-
-    .stat-value {
-      font-size: 15px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .stat-value.btc { color: #f59e0b; }
-    .stat-value.asc { color: #06b6d4; }
-
-    /* Action Buttons */
-    .actions-section {
+    /* Main Container */
+    .controls {
       display: flex;
       flex-direction: column;
       gap: 14px;
-      margin-bottom: 24px;
+      flex: 1;
     }
 
-    .btn {
-      position: relative;
-      width: 100%;
-      border: none;
+    /* Primary Action: Farm */
+    .btn-main {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 16px;
-      padding: 16px 20px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
+      padding: 20px 18px;
+      color: #fff;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
       overflow: hidden;
     }
 
-    .btn:active {
-      transform: scale(0.97);
+    .btn-main:active {
+      transform: scale(0.98);
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
     }
 
-    .btn-content {
+    .btn-main-left {
       display: flex;
       align-items: center;
       gap: 14px;
-      z-index: 1;
     }
 
-    .btn-icon-wrap {
-      width: 42px;
-      height: 42px;
+    .btn-main-icon {
+      font-size: 28px;
+      width: 48px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.15);
       border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 22px;
     }
 
-    .btn-titles {
-      text-align: left;
-    }
-
-    .btn-main-title {
-      font-size: 16px;
+    .btn-main-info h2 {
+      font-size: 17px;
       font-weight: 700;
+      margin-bottom: 2px;
     }
 
-    .btn-sub-title {
-      font-size: 12px;
-      font-weight: 500;
-      opacity: 0.75;
-      margin-top: 2px;
+    .btn-main-info p {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.75);
     }
 
     .btn-arrow {
-      font-size: 18px;
-      opacity: 0.6;
-      z-index: 1;
+      font-size: 20px;
+      color: rgba(255, 255, 255, 0.7);
     }
 
-    /* Primary Launch Button */
-    .btn-primary {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
-      color: #ffffff;
-      box-shadow: 0 8px 24px rgba(139, 92, 246, 0.35);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+    /* Secondary Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
     }
 
-    .btn-primary .btn-icon-wrap {
-      background: rgba(255, 255, 255, 0.2);
-      backdrop-filter: blur(8px);
-    }
-
-    /* Status Button */
-    .btn-secondary {
+    .btn-card {
       background: var(--card-bg);
-      color: var(--text-main);
       border: 1px solid var(--card-border);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-    }
-
-    .btn-secondary .btn-icon-wrap {
-      background: rgba(6, 182, 212, 0.15);
-      color: var(--cyan);
-    }
-
-    /* Stop Button */
-    .btn-danger {
-      background: var(--card-bg);
-      color: #fca5a5;
-      border: 1px solid rgba(239, 68, 68, 0.25);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-    }
-
-    .btn-danger .btn-icon-wrap {
-      background: rgba(239, 68, 68, 0.15);
-      color: var(--danger);
-    }
-
-    /* Info Tip Box */
-    .info-card {
-      background: rgba(30, 27, 75, 0.4);
-      border: 1px dashed rgba(168, 85, 247, 0.3);
       border-radius: 14px;
-      padding: 14px;
-      font-size: 12px;
-      color: #c4b5fd;
-      line-height: 1.5;
+      padding: 16px 14px;
+      color: var(--text-main);
       display: flex;
-      gap: 10px;
+      flex-direction: column;
       align-items: flex-start;
-      margin-top: auto;
+      gap: 8px;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      transition: all 0.15s ease;
     }
 
-    .info-icon {
-      font-size: 16px;
-      line-height: 1;
+    .btn-card:active {
+      transform: scale(0.97);
+      background: rgba(30, 33, 50, 0.95);
     }
 
-    /* Browser Preview Mode Notice */
-    .preview-notice {
-      display: none;
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      border-radius: 10px;
-      padding: 10px;
+    .btn-card-icon {
+      font-size: 24px;
+    }
+
+    .btn-card-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .btn-card-desc {
       font-size: 12px;
-      color: #fcd34d;
-      margin-bottom: 16px;
-      text-align: center;
+      color: var(--text-muted);
     }
 
-    /* Success Toast */
+    .btn-card.stop {
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+    .btn-card.stop:active {
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    /* Help Info Card */
+    .info-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    .info-card strong {
+      color: var(--text-main);
+    }
+
+    .info-card ul {
+      margin-top: 8px;
+      padding-left: 18px;
+    }
+
+    .info-card li {
+      margin-bottom: 4px;
+    }
+
+    /* Toast Notification */
     .toast {
       position: fixed;
       bottom: 24px;
       left: 50%;
       transform: translateX(-50%) translateY(100px);
-      background: rgba(16, 185, 129, 0.95);
-      color: #ffffff;
+      background: rgba(15, 17, 26, 0.95);
+      border: 1px solid var(--accent);
+      color: var(--text-main);
       padding: 12px 24px;
-      border-radius: 30px;
+      border-radius: 25px;
       font-size: 14px;
-      font-weight: 600;
-      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
-      transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      font-weight: 500;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px var(--accent-glow);
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       z-index: 100;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+      pointer-events: none;
     }
 
     .toast.show {
       transform: translateX(-50%) translateY(0);
     }
+
+    /* Modal dialog */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(6px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-box {
+      background: #151824;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 16px;
+      padding: 22px;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+    }
+    .modal-box h3 {
+      font-size: 18px;
+      color: #fca5a5;
+      margin-bottom: 10px;
+    }
+    .modal-box p {
+      font-size: 13.5px;
+      color: #d1d5db;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+    .modal-btn {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding-top: 16px;
+      text-align: center;
+      font-size: 11px;
+      color: rgba(156, 163, 175, 0.6);
+    }
   </style>
 </head>
 <body>
 
-  <!-- Notice shown when testing in browser outside Telegram -->
-  <div id="previewNotice" class="preview-notice">
-    🌐 <b>Режим предпросмотра:</b> запущено в обычном браузере. В Telegram клики будут отправлять команды боту.
+  <!-- Notice: Browser preview mode -->
+  <div id="previewNotice" class="banner banner-preview">
+    <strong>💡 Режим предпросмотра</strong>
+    Открыто в обычном браузере вне Telegram. В Telegram команды будут мгновенно передаваться в игру.
+  </div>
+
+  <!-- Notice: Opened from Menu Button warning -->
+  <div id="menuNotice" class="banner banner-warning">
+    <strong>⚠️ Открыто через кнопку Menu</strong>
+    Telegram блокирует отправку данных из кнопки меню. Пожалуйста, откройте чат с ботом, отправьте <code>/start</code> и используйте кнопку <b>«⚡ Пульт управления»</b> на клавиатуре чата.
   </div>
 
   <!-- Header -->
@@ -333,92 +388,96 @@
     </div>
     <div class="status-badge">
       <div class="status-dot"></div>
-      <span id="connStatus">Онлайн</span>
+      <span id="connStatus">Готов</span>
     </div>
   </header>
 
-  <!-- Dashboard Overview -->
-  <div class="dashboard-grid">
-    <div class="stat-card">
-      <div class="stat-label">Модуль</div>
-      <div class="stat-value">
-        <span>⚡ FlashMiner</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Подключение</div>
-      <div class="stat-value btc">
-        <span>🤖 Бот активен</span>
-      </div>
-    </div>
-  </div>
-
   <!-- Action Controls -->
-  <div class="actions-section">
-    <!-- Farm (Primary) -->
-    <button class="btn btn-primary" onclick="sendCommand('farm')">
-      <div class="btn-content">
-        <div class="btn-icon-wrap">🚀</div>
-        <div class="btn-titles">
-          <div class="btn-main-title">Запустить сбор</div>
-          <div class="btn-sub-title">Обход всех выбранных домов (/farm)</div>
+  <main class="controls">
+    <!-- Primary action: Farm -->
+    <div class="btn-main" onclick="sendCommand('farm')">
+      <div class="btn-main-left">
+        <div class="btn-main-icon">🚀</div>
+        <div class="btn-main-info">
+          <h2>Запустить сбор</h2>
+          <p>Обход домов, снятие прибыли, запуск</p>
         </div>
       </div>
-      <div class="btn-arrow">➔</div>
-    </button>
-
-    <!-- Status -->
-    <button class="btn btn-secondary" onclick="sendCommand('status')">
-      <div class="btn-content">
-        <div class="btn-icon-wrap">📊</div>
-        <div class="btn-titles">
-          <div class="btn-main-title">Статус работы</div>
-          <div class="btn-sub-title">Текущий прогресс и стойки (/status)</div>
-        </div>
-      </div>
-      <div class="btn-arrow">➔</div>
-    </button>
-
-    <!-- Stop -->
-    <button class="btn btn-danger" onclick="sendCommand('stop')">
-      <div class="btn-content">
-        <div class="btn-icon-wrap">🛑</div>
-        <div class="btn-titles">
-          <div class="btn-main-title">Остановить</div>
-          <div class="btn-sub-title">Экстренная остановка сбора (/stop)</div>
-        </div>
-      </div>
-      <div class="btn-arrow">➔</div>
-    </button>
-  </div>
-
-  <!-- Instructions Note -->
-  <div class="info-card">
-    <div class="info-icon">💡</div>
-    <div>
-      Нажатие кнопки отправляет команду напрямую в игру через Telegram. Окно пульта автоматически закроется после отправки.
+      <div class="btn-arrow">→</div>
     </div>
+
+    <!-- Secondary grid -->
+    <div class="grid">
+      <div class="btn-card" onclick="sendCommand('status')">
+        <div class="btn-card-icon">📊</div>
+        <div class="btn-card-title">Статус</div>
+        <div class="btn-card-desc">Дома, прибыль, стойки</div>
+      </div>
+
+      <div class="btn-card stop" onclick="sendCommand('stop')">
+        <div class="btn-card-icon">🛑</div>
+        <div class="btn-card-title">Остановить</div>
+        <div class="btn-card-desc">Экстренный стоп бота</div>
+      </div>
+    </div>
+
+    <!-- Quick Info -->
+    <div class="info-card">
+      <strong>📌 Как это работает:</strong>
+      <ul>
+        <li>Нажатие кнопки передаёт команду прямо в скрипт через Telegram.</li>
+        <li>После запуска окно пульта закроется, а бот пришлёт отчёт в чат.</li>
+        <li>Контроль охлаждающей жидкости и сбор криптовалюты полностью автоматизированы.</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer>
+    MiningNextGen v1.3.1 • GTA:SA Arizona RP
+  </footer>
+
+  <!-- Toast -->
+  <div id="toast" class="toast">
+    <span>⚡</span>
+    <span id="toastText">Команда отправлена</span>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="toast">
-    <span>✅</span>
-    <span id="toastText">Команда отправлена!</span>
+  <!-- Modal for Menu Button warning -->
+  <div id="menuModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>⚠️ Ограничение Telegram</h3>
+      <p>
+        Вы открыли пульт через <b>кнопку Menu</b> внизу слева. В этом режиме Telegram не позволяет отправлять команды боту без выделенного сервера.<br><br>
+        Чтобы пульт работал напрямую, отправьте боту команду <b>/start</b> и нажимайте кнопку <b>«⚡ Пульт управления»</b> прямо на клавиатуре чата!
+      </p>
+      <button class="modal-btn" onclick="closeModalAndApp()">Понятно, открыть чат</button>
+    </div>
   </div>
 
   <script>
-    // Initialize Telegram WebApp
     const tg = window.Telegram?.WebApp;
-    const isTg = !!(tg && tg.initData);
+    // Check if running inside Telegram WebApp
+    const isTg = !!(tg && typeof tg.ready === 'function');
+
+    // According to Telegram WebApp Bot API documentation:
+    // WebAppInitData is empty when launched from a KeyboardButton
+    const isFromKeyboard = isTg && (!tg.initData || tg.initData.length === 0);
+    const isFromMenu = isTg && tg.initData && tg.initData.length > 0;
 
     if (isTg) {
       tg.ready();
       tg.expand();
-      // Set Telegram header and background colors to match dark theme
       if (tg.setHeaderColor) tg.setHeaderColor('#0b0c13');
       if (tg.setBackgroundColor) tg.setBackgroundColor('#0b0c13');
+
+      if (isFromMenu) {
+        // Show notice when opened from Menu button
+        const menuNotice = document.getElementById('menuNotice');
+        if (menuNotice) menuNotice.style.display = 'block';
+      }
     } else {
-      document.getElementById('previewNotice').style.display = 'block';
+      const prev = document.getElementById('previewNotice');
+      if (prev) prev.style.display = 'block';
     }
 
     function showToast(text) {
@@ -429,6 +488,13 @@
       setTimeout(() => {
         toast.classList.remove('show');
       }, 2000);
+    }
+
+    function closeModalAndApp() {
+      document.getElementById('menuModal').style.display = 'none';
+      if (isTg && tg.close) {
+        tg.close();
+      }
     }
 
     function sendCommand(cmd) {
@@ -443,17 +509,23 @@
         }
       }
 
+      if (isFromMenu) {
+        // When launched from Menu Button, Telegram blocks sendData()
+        document.getElementById('menuModal').style.display = 'flex';
+        return;
+      }
+
       showToast(`Отправка /${cmd}...`);
 
       if (isTg) {
         setTimeout(() => {
           try {
-            // Sends data directly back to the bot
+            // Sends data directly back to the bot (allowed only for KeyboardButton)
             tg.sendData(cmd);
           } catch (e) {
             console.error('Error sending data to Telegram:', e);
           }
-        }, 200);
+        }, 150);
       } else {
         console.log(`[Preview Mode] Command sent: ${cmd}`);
       }

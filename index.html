@@ -400,6 +400,208 @@
     .telemetry-stat .val.gold { color: var(--gold); }
     .telemetry-stat .val.cyan { color: var(--cyan); }
 
+    /* Coolant Monitor Card */
+    .coolant-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      backdrop-filter: blur(12px);
+    }
+    .coolant-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .coolant-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .coolant-ok-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .coolant-ok-icon {
+      font-size: 26px;
+    }
+    .coolant-ok-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #34d399;
+      margin-bottom: 2px;
+    }
+    .coolant-ok-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .coolant-issues-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .coolant-issue-card {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+    .coolant-issue-card.danger {
+      border-color: rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .coolant-issue-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .coolant-house {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13.5px;
+      color: #fff;
+    }
+    .coolant-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .coolant-dot.danger {
+      background: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+    }
+    .coolant-dot.warn {
+      background: var(--warning);
+      box-shadow: 0 0 8px var(--warning);
+    }
+    .coolant-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .coolant-badge.danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+    .coolant-badge.warn {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fde68a;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .coolant-issue-details {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    .coolant-issue-details b {
+      color: #fff;
+    }
+    .coolant-alert-box {
+      font-size: 11.5px;
+      color: #fca5a5;
+      background: rgba(239, 68, 68, 0.15);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+
+    /* Farm History Card */
+    .farm-history-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      backdrop-filter: blur(12px);
+    }
+    .farm-history-header {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .farm-history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .farm-run-item {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .farm-run-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .farm-run-time {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+    .farm-run-pills {
+      display: flex;
+      gap: 6px;
+      font-size: 10.5px;
+    }
+    .farm-pill {
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #d1d5db;
+    }
+    .farm-run-right {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .farm-run-btc {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .farm-run-asc {
+      font-size: 11.5px;
+      color: var(--cyan);
+    }
+    .farm-run-status {
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+    .farm-run-status.ok {
+      color: #34d399;
+    }
+    .farm-run-status.warn {
+      color: #fbbf24;
+    }
+
     /* TAB 2: PayDay Analytics */
     .kpi-grid {
       display: grid;
@@ -908,6 +1110,35 @@
           <div class="label">Домов в очереди</div>
           <div id="mineHouses" class="val">0</div>
         </div>
+      </div>
+      <div style="font-size: 11.5px; color: var(--text-muted); display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;">
+        <span>Последний сбор:</span>
+        <span id="mineLastTime" style="color: #fff; font-weight: 600;">—</span>
+      </div>
+    </div>
+
+    <!-- Coolant Monitor Card -->
+    <div class="coolant-card">
+      <div class="coolant-header">
+        <div class="coolant-title">
+          <span>💧 Охлаждающая жидкость</span>
+        </div>
+        <span id="coolantSummaryBadge" class="status-badge" style="cursor: default;">
+          <span class="status-dot"></span><span>Норма</span>
+        </span>
+      </div>
+      <div id="coolantContainer">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Farm History Card -->
+    <div class="farm-history-card">
+      <div class="farm-history-header">
+        <span>📋 Последние сборы ферм</span>
+      </div>
+      <div id="farmHistoryList" class="farm-history-list">
+        <!-- Rendered dynamically -->
       </div>
     </div>
 
@@ -1453,10 +1684,53 @@
         ],
         mining: {
           active: false,
+          lastFarmTime: Date.now() - 3600000,
+          lastFarmTimeStr: '22:30',
+          lastFarmDateStr: '2026-09-23',
           btc: 0.0845,
           asc: 14.20,
           started: 8,
-          housesCount: 4
+          housesCount: 4,
+          allCoolantOk: false,
+          coolantIssues: [
+            { house: 421, count: 2, minCool: 8.2, isDanger: true },
+            { house: 812, count: 4, minCool: 31.5, isDanger: false }
+          ],
+          history: [
+            {
+              timeStr: '22:30',
+              dateStr: '2026-09-23',
+              btc: 0.0845,
+              asc: 14.20,
+              started: 8,
+              housesCount: 4,
+              allCoolantOk: false,
+              coolantIssues: [
+                { house: 421, count: 2, minCool: 8.2, isDanger: true },
+                { house: 812, count: 4, minCool: 31.5, isDanger: false }
+              ]
+            },
+            {
+              timeStr: '16:15',
+              dateStr: '2026-09-23',
+              btc: 0.0790,
+              asc: 13.80,
+              started: 6,
+              housesCount: 4,
+              allCoolantOk: true,
+              coolantIssues: []
+            },
+            {
+              timeStr: '10:00',
+              dateStr: '2026-09-23',
+              btc: 0.0815,
+              asc: 14.10,
+              started: 12,
+              housesCount: 4,
+              allCoolantOk: true,
+              coolantIssues: []
+            }
+          ]
         }
       };
 
@@ -1465,16 +1739,131 @@
       updateSyncStatus('demo', 'Демо-режим');
     }
 
+    function renderCoolantMonitor(m) {
+      const container = document.getElementById('coolantContainer');
+      const badge = document.getElementById('coolantSummaryBadge');
+      if (!container || !badge) return;
+
+      const issues = m.coolantIssues || [];
+      const isAllOk = m.allCoolantOk !== false && issues.length === 0;
+
+      if (isAllOk) {
+        badge.className = 'status-badge';
+        badge.style.color = '#34d399';
+        badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        badge.style.background = 'rgba(16, 185, 129, 0.12)';
+        badge.innerHTML = '<span class="status-dot"></span><span>Норма</span>';
+
+        container.innerHTML = `
+          <div class="coolant-ok-banner">
+            <div class="coolant-ok-icon">✅</div>
+            <div class="coolant-ok-text">
+              <div class="coolant-ok-title">Жидкость в норме</div>
+              <div class="coolant-ok-desc">Во всех проверенных домах уровень охлаждения &ge; 45%</div>
+            </div>
+          </div>
+        `;
+      } else {
+        const hasDanger = issues.some(i => i.isDanger || (i.minCool !== undefined && i.minCool < 10));
+        badge.className = 'status-badge ' + (hasDanger ? 'offline' : 'demo');
+        badge.innerHTML = `<span class="status-dot"></span><span>${hasDanger ? '🔴 Опасно' : '🟠 Внимание'} (${issues.length})</span>`;
+
+        let html = '<div class="coolant-issues-list">';
+        issues.forEach(iss => {
+          const isDanger = iss.isDanger || (iss.minCool !== undefined && iss.minCool < 10);
+          const icon = isDanger ? '🔴' : '🟠';
+          const typeClass = isDanger ? 'danger' : 'warn';
+          const minVal = iss.minCool !== undefined ? Number(iss.minCool).toFixed(1) + '%' : 'н/д';
+
+          html += `
+            <div class="coolant-issue-card ${typeClass}">
+              <div class="coolant-issue-top">
+                <div class="coolant-house">
+                  <span class="coolant-dot ${typeClass}"></span>
+                  <strong>${icon} Дом №${iss.house}</strong>
+                </div>
+                <span class="coolant-badge ${typeClass}">
+                  ${isDanger ? 'КРИТИЧНО' : 'ВНИМАНИЕ'} &bull; ${minVal}
+                </span>
+              </div>
+              <div class="coolant-issue-details">
+                <span>Затронуто видеокарт/стоек: <b>${iss.count || 0} шт.</b></span>
+                <span>Мин. охлаждение: <b>${minVal}</b></span>
+              </div>
+              ${isDanger ? '<div class="coolant-alert-box">⚠️ Срочно залейте охладитель во избежание остановки фермы!</div>' : ''}
+            </div>
+          `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+      }
+    }
+
+    function renderFarmHistory(m) {
+      const container = document.getElementById('farmHistoryList');
+      if (!container) return;
+
+      const history = m.history || [];
+      if (history.length === 0) {
+        container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">История сборов появится после первого завершения FlashMiner</div>';
+        return;
+      }
+
+      let html = '';
+      history.slice(0, 8).forEach(run => {
+        const isOk = run.allCoolantOk !== false && (!run.coolantIssues || run.coolantIssues.length === 0);
+        const issuesCount = run.coolantIssues ? run.coolantIssues.length : 0;
+        const btc = Number(run.btc || 0).toFixed(4);
+        const asc = Number(run.asc || 0).toFixed(2);
+        const started = run.started || 0;
+        const houses = run.housesCount || 0;
+
+        html += `
+          <div class="farm-run-item">
+            <div class="farm-run-left">
+              <span class="farm-run-time">🕒 ${run.timeStr || '--:--'} (${run.dateStr || ''})</span>
+              <div class="farm-run-pills">
+                <span class="farm-pill">🏠 ${houses} домов</span>
+                <span class="farm-pill">⚡ ${started} запущено</span>
+              </div>
+            </div>
+            <div class="farm-run-right">
+              <div class="farm-run-btc">+${btc} BTC</div>
+              <div class="farm-run-asc">+${asc} ASC</div>
+              <div class="farm-run-status ${isOk ? 'ok' : 'warn'}">
+                ${isOk ? '✅ Охлаждение в норме' : '⚠️ Проблемы (' + issuesCount + ')'}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
     function updateUI(data) {
       if (!data) return;
 
       // 1. Mining tab
       if (data.mining) {
-        document.getElementById('mineBtc').textContent = (data.mining.btc || 0).toFixed(4) + ' BTC';
-        document.getElementById('mineAsc').textContent = (data.mining.asc || 0).toFixed(2) + ' ASC';
-        document.getElementById('mineStarted').textContent = data.mining.started || 0;
-        document.getElementById('mineHouses').textContent = data.mining.housesCount || 0;
-        document.getElementById('miningActiveStatus').textContent = data.mining.active ? '⚡ Сбор активен' : 'Готов к работе';
+        const m = data.mining;
+        document.getElementById('mineBtc').textContent = (m.btc || 0).toFixed(4) + ' BTC';
+        document.getElementById('mineAsc').textContent = (m.asc || 0).toFixed(2) + ' ASC';
+        document.getElementById('mineStarted').textContent = m.started || 0;
+        document.getElementById('mineHouses').textContent = m.housesCount || 0;
+        document.getElementById('miningActiveStatus').textContent = m.active ? '⚡ Сбор активен' : 'Готов к работе';
+
+        const lastTimeEl = document.getElementById('mineLastTime');
+        if (lastTimeEl) {
+          if (m.lastFarmTimeStr) {
+            lastTimeEl.textContent = m.lastFarmTimeStr + (m.lastFarmDateStr ? ' (' + m.lastFarmDateStr + ')' : '');
+          } else {
+            lastTimeEl.textContent = '—';
+          }
+        }
+
+        renderCoolantMonitor(m);
+        renderFarmHistory(m);
       }
 
       // 2. Payday KPI Cards

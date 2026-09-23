@@ -663,6 +663,16 @@
       color: #fff;
       letter-spacing: -0.3px;
     }
+    .kpi-value.gold {
+      color: var(--gold);
+    }
+    .kpi-value.cyan {
+      color: var(--cyan);
+    }
+    .kpi-badge.cyan {
+      background: rgba(34, 211, 238, 0.15);
+      color: var(--cyan);
+    }
     .kpi-sub {
       font-size: 11px;
       color: var(--cyan);
@@ -1101,11 +1111,11 @@
       <div class="telemetry-grid">
         <div class="telemetry-stat">
           <div class="label">Собрано Bitcoin</div>
-          <div id="mineBtc" class="val gold">0.0000 BTC</div>
+          <div id="mineBtc" class="val gold">0 BTC</div>
         </div>
         <div class="telemetry-stat">
           <div class="label">Собрано ASC</div>
-          <div id="mineAsc" class="val cyan">0.00 ASC</div>
+          <div id="mineAsc" class="val cyan">0 ASC</div>
         </div>
         <div class="telemetry-stat">
           <div class="label">Запущено стоек</div>
@@ -1158,7 +1168,74 @@
     </div>
   </section>
 
-  <!-- ==================== TAB 2: PAYDAY ==================== -->
+  <!-- ==================== TAB 2: FARM STATS (PROFIT) ==================== -->
+  <section id="tabFarmStats" class="tab-pane">
+    <div class="kpi-grid">
+      <!-- Week BTC -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Неделя • BTC</span>
+          <span class="kpi-badge gold">7 дней</span>
+        </div>
+        <div id="farmWeekBtc" class="kpi-value gold">0 BTC</div>
+        <div class="kpi-sub">
+          <span>⚡</span>
+          <span id="farmWeekRuns">0 сборов</span>
+        </div>
+      </div>
+
+      <!-- Week ASC -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Неделя • ASC</span>
+          <span class="kpi-badge cyan">7 дней</span>
+        </div>
+        <div id="farmWeekAsc" class="kpi-value cyan">0 ASC</div>
+        <div class="kpi-sub">
+          <span>🪙</span>
+          <span>Arizona Stable Coin</span>
+        </div>
+      </div>
+
+      <!-- All-Time BTC -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Всё время • BTC</span>
+          <span class="kpi-badge gold">Всего</span>
+        </div>
+        <div id="farmAllBtc" class="kpi-value gold">0 BTC</div>
+        <div class="kpi-sub">
+          <span>⚡</span>
+          <span id="farmAllRuns">0 сборов</span>
+        </div>
+      </div>
+
+      <!-- All-Time ASC -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Всё время • ASC</span>
+          <span class="kpi-badge cyan">Всего</span>
+        </div>
+        <div id="farmAllAsc" class="kpi-value cyan">0 ASC</div>
+        <div class="kpi-sub">
+          <span>🪙</span>
+          <span>Всего добыто</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Farm Profit History Card -->
+    <div class="farm-history-card">
+      <div class="farm-history-header">
+        <span>💰 Начисления с ферм</span>
+      </div>
+      <div id="farmProfitList" class="farm-history-list">
+        <!-- Rendered dynamically without coolant info -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB 3: PAYDAY ==================== -->
   <section id="tabPayday" class="tab-pane">
     <!-- KPI Summary Grid -->
     <div class="kpi-grid">
@@ -1334,6 +1411,10 @@
       <div class="tab-icon">⚡</div>
       <div class="tab-label">Майнинг</div>
     </div>
+    <div class="tab-item" onclick="switchTab('farmStats')">
+      <div class="tab-icon">💰</div>
+      <div class="tab-label">Прибыль</div>
+    </div>
     <div class="tab-item" onclick="switchTab('payday')">
       <div class="tab-icon">📊</div>
       <div class="tab-label">PayDay</div>
@@ -1450,7 +1531,7 @@
       // Update nav items
       const tabItems = document.querySelectorAll('.tab-item');
       tabItems.forEach((item, idx) => {
-        const names = ['mining', 'payday', 'settings'];
+        const names = ['mining', 'farmStats', 'payday', 'settings'];
         if (names[idx] === tabName) {
           item.classList.add('active');
         } else {
@@ -1460,6 +1541,7 @@
 
       // Update panes
       document.getElementById('tabMining').classList.toggle('active', tabName === 'mining');
+      document.getElementById('tabFarmStats').classList.toggle('active', tabName === 'farmStats');
       document.getElementById('tabPayday').classList.toggle('active', tabName === 'payday');
       document.getElementById('tabSettings').classList.toggle('active', tabName === 'settings');
 
@@ -1557,24 +1639,124 @@
     function processIncomingCloudData(rawData) {
       if (!rawData || typeof rawData !== 'object') return rawData;
 
-      const mining = rawData.mining || {
-        active: false,
-        btc: 0,
-        asc: 0,
-        started: 0,
-        housesCount: 0,
-        allCoolantOk: true,
-        coolantIssues: [],
-        history: [],
-        lastFarmTime: 0,
-        lastFarmTimeStr: '',
-        lastFarmDateStr: ''
+      let mining = rawData.mining;
+      if (!mining && (rawData.btc !== undefined || rawData.started !== undefined || rawData.housesCount !== undefined)) {
+        mining = rawData;
+      }
+      if (!mining) {
+        mining = {
+          active: false,
+          btc: 0,
+          asc: 0,
+          started: 0,
+          housesCount: 0,
+          allCoolantOk: true,
+          coolantIssues: [],
+          history: [],
+          lastFarmTime: 0,
+          lastFarmTimeStr: '',
+          lastFarmDateStr: ''
+        };
+      }
+
+      // Compute Mining Profit Aggregation (Weekly 7 days & All-Time)
+      const runsMap = {};
+      if (mining.runs && typeof mining.runs === 'object') {
+        Object.entries(mining.runs).forEach(([k, r]) => {
+          if (r && typeof r === 'object') {
+            const t = Number(r.time) || Number(k) || 0;
+            const key = t > 0 ? String(t) : ((r.dateStr || 'run') + '_' + (r.timeStr || k));
+            runsMap[key] = { ...r, time: t };
+          }
+        });
+      }
+      if (rawData.miningRuns && typeof rawData.miningRuns === 'object') {
+        Object.entries(rawData.miningRuns).forEach(([k, r]) => {
+          if (r && typeof r === 'object') {
+            const t = Number(r.time) || Number(k) || 0;
+            const key = t > 0 ? String(t) : ((r.dateStr || 'run') + '_' + (r.timeStr || k));
+            runsMap[key] = { ...r, time: t };
+          }
+        });
+      }
+      const hist = Array.isArray(mining.history) ? mining.history : (mining.history && typeof mining.history === 'object' ? Object.values(mining.history) : []);
+      hist.forEach((r, idx) => {
+        if (r && typeof r === 'object') {
+          const t = Number(r.time) || 0;
+          const key = t > 0 ? String(t) : ((r.dateStr || 'hist') + '_' + (r.timeStr || idx));
+          if (!runsMap[key]) {
+            runsMap[key] = { ...r, time: t };
+          }
+        }
+      });
+
+      const allRuns = Object.values(runsMap);
+      allRuns.forEach(r => {
+        if (!r.time && r.dateStr) {
+          try {
+            const parts = r.dateStr.split('-');
+            if (parts.length === 3) {
+              const y = parseInt(parts[0], 10);
+              const m = parseInt(parts[1], 10) - 1;
+              const d = parseInt(parts[2], 10);
+              let h = 12, min = 0;
+              if (r.timeStr && r.timeStr.includes(':')) {
+                const tp = r.timeStr.split(':');
+                h = parseInt(tp[0], 10) || 0;
+                min = parseInt(tp[1], 10) || 0;
+              }
+              r.time = Math.floor(Date.UTC(y, m, d, h - 3, min, 0) / 1000);
+            }
+          } catch (e) {}
+        }
+      });
+      allRuns.sort((a, b) => (b.time || 0) - (a.time || 0));
+
+      const nowTs = Math.floor(Date.now() / 1000);
+      const sevenDaysAgoTs = nowTs - 7 * 86400;
+
+      let weekBtc = 0, weekAsc = 0, weekRuns = 0;
+      let allTimeBtc = 0, allTimeAsc = 0, allTimeRuns = 0;
+
+      if (allRuns.length > 0) {
+        allRuns.forEach(r => {
+          const btc = Math.round(Number(r.btc) || 0);
+          const asc = Math.round(Number(r.asc) || 0);
+          allTimeBtc += btc;
+          allTimeAsc += asc;
+          allTimeRuns++;
+
+          const rTime = Number(r.time) || 0;
+          if (rTime >= sevenDaysAgoTs || (!rTime && r.dateStr)) {
+            weekBtc += btc;
+            weekAsc += asc;
+            weekRuns++;
+          }
+        });
+      } else if (Number(mining.btc) > 0 || Number(mining.asc) > 0) {
+        weekBtc = Math.round(Number(mining.btc) || 0);
+        weekAsc = Math.round(Number(mining.asc) || 0);
+        weekRuns = 1;
+        allTimeBtc = weekBtc;
+        allTimeAsc = weekAsc;
+        allTimeRuns = 1;
+      }
+
+      const miningProfit = {
+        weekBtc,
+        weekAsc,
+        weekRuns,
+        allTimeBtc,
+        allTimeAsc,
+        allTimeRuns,
+        runs: allRuns
       };
 
       if (!rawData.paydays && rawData.summary && rawData.halfHourlyToday) {
         return {
           ...rawData,
-          mining: mining
+          mining: mining,
+          miningProfit: rawData.miningProfit || miningProfit
         };
       }
 
@@ -1763,7 +1945,8 @@
         dailyWeek,
         dailyMonth,
         recentPaydays: paydayList.slice(0, 30),
-        mining: mining
+        mining: mining,
+        miningProfit: miningProfit
       };
     }
 
@@ -1960,8 +2143,8 @@
           lastFarmTime: Date.now() - 3600000,
           lastFarmTimeStr: '22:30',
           lastFarmDateStr: '2026-09-23',
-          btc: 0.0845,
-          asc: 14.20,
+          btc: 18,
+          asc: 140,
           started: 8,
           housesCount: 4,
           allCoolantOk: false,
@@ -1971,10 +2154,11 @@
           ],
           history: [
             {
+              time: Math.floor(Date.now() / 1000) - 3600,
               timeStr: '22:30',
               dateStr: '2026-09-23',
-              btc: 0.0845,
-              asc: 14.20,
+              btc: 18,
+              asc: 140,
               started: 8,
               housesCount: 4,
               allCoolantOk: false,
@@ -1984,20 +2168,22 @@
               ]
             },
             {
+              time: Math.floor(Date.now() / 1000) - 26000,
               timeStr: '16:15',
               dateStr: '2026-09-23',
-              btc: 0.0790,
-              asc: 13.80,
+              btc: 15,
+              asc: 120,
               started: 6,
               housesCount: 4,
               allCoolantOk: true,
               coolantIssues: []
             },
             {
+              time: Math.floor(Date.now() / 1000) - 48000,
               timeStr: '10:00',
               dateStr: '2026-09-23',
-              btc: 0.0815,
-              asc: 14.10,
+              btc: 17,
+              asc: 135,
               started: 12,
               housesCount: 4,
               allCoolantOk: true,
@@ -2007,8 +2193,9 @@
         }
       };
 
-      appData = demo;
-      updateUI(demo);
+      const processedDemo = processIncomingCloudData(demo);
+      appData = processedDemo;
+      updateUI(processedDemo);
       updateSyncStatus('demo', 'Демо-режим');
     }
 
@@ -2086,8 +2273,8 @@
       history.slice(0, 8).forEach(run => {
         const isOk = run.allCoolantOk !== false && (!run.coolantIssues || run.coolantIssues.length === 0);
         const issuesCount = run.coolantIssues ? run.coolantIssues.length : 0;
-        const btc = Number(run.btc || 0).toFixed(4);
-        const asc = Number(run.asc || 0).toFixed(2);
+        const btc = Math.round(Number(run.btc) || 0);
+        const asc = Math.round(Number(run.asc) || 0);
         const started = run.started || 0;
         const houses = run.housesCount || 0;
 
@@ -2114,14 +2301,50 @@
       container.innerHTML = html;
     }
 
+    function renderMiningProfitList(runs) {
+      const container = document.getElementById('farmProfitList');
+      if (!container) return;
+
+      if (!runs || runs.length === 0) {
+        container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:16px;">История начислений появится после завершения сбора ферм</div>';
+        return;
+      }
+
+      let html = '';
+      runs.slice(0, 30).forEach(run => {
+        const btc = Math.round(Number(run.btc) || 0);
+        const asc = Math.round(Number(run.asc) || 0);
+        const started = run.started || 0;
+        const houses = run.housesCount || 0;
+
+        html += `
+          <div class="farm-run-item">
+            <div class="farm-run-left">
+              <span class="farm-run-time">🕒 ${run.timeStr || '--:--'} (${run.dateStr || ''})</span>
+              <div class="farm-run-pills">
+                <span class="farm-pill">🏠 ${houses} домов</span>
+                <span class="farm-pill">⚡ ${started} запущено</span>
+              </div>
+            </div>
+            <div class="farm-run-right">
+              <div class="farm-run-btc">+${btc} BTC</div>
+              <div class="farm-run-asc">+${asc} ASC</div>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
     function updateUI(data) {
       if (!data) return;
 
       // 1. Mining tab
       if (data.mining) {
         const m = data.mining;
-        document.getElementById('mineBtc').textContent = (m.btc || 0).toFixed(4) + ' BTC';
-        document.getElementById('mineAsc').textContent = (m.asc || 0).toFixed(2) + ' ASC';
+        document.getElementById('mineBtc').textContent = Math.round(Number(m.btc) || 0) + ' BTC';
+        document.getElementById('mineAsc').textContent = Math.round(Number(m.asc) || 0) + ' ASC';
         document.getElementById('mineStarted').textContent = m.started || 0;
         document.getElementById('mineHouses').textContent = m.housesCount || 0;
         document.getElementById('miningActiveStatus').textContent = m.active ? '⚡ Сбор активен' : 'Готов к работе';
@@ -2137,6 +2360,20 @@
 
         renderCoolantMonitor(m);
         renderFarmHistory(m);
+      }
+
+      // 1.1 Mining Profit tab
+      if (data.miningProfit) {
+        const mp = data.miningProfit;
+        document.getElementById('farmWeekBtc').textContent = (mp.weekBtc || 0) + ' BTC';
+        document.getElementById('farmWeekAsc').textContent = (mp.weekAsc || 0) + ' ASC';
+        document.getElementById('farmWeekRuns').textContent = (mp.weekRuns || 0) + ' сборов';
+
+        document.getElementById('farmAllBtc').textContent = (mp.allTimeBtc || 0) + ' BTC';
+        document.getElementById('farmAllAsc').textContent = (mp.allTimeAsc || 0) + ' ASC';
+        document.getElementById('farmAllRuns').textContent = (mp.allTimeRuns || 0) + ' сборов';
+
+        renderMiningProfitList(mp.runs || []);
       }
 
       // 2. Payday KPI Cards

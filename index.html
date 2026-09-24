@@ -400,6 +400,29 @@
     .char-fin-card.deposit .char-fin-val { color: #fbbf24; }
     .char-fin-card.az .char-fin-val { color: #a78bfa; }
 
+    .char-vc-row {
+      margin-top: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 7px;
+      background: rgba(192, 132, 252, 0.12);
+      border: 1px solid rgba(192, 132, 252, 0.25);
+      border-radius: 6px;
+      font-size: 11px;
+    }
+    .char-vc-tag {
+      font-weight: 700;
+      color: #c084fc;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .char-vc-val {
+      font-family: monospace;
+      font-weight: 600;
+      color: #f3e8ff;
+    }
+
     /* Work / Org Card */
     .char-info-card {
       background: var(--card-bg);
@@ -1543,8 +1566,12 @@
     <!-- Finances Grid -->
     <div class="char-finance-grid">
       <div class="char-fin-card cash">
-        <div class="char-fin-label">💵 На руках</div>
+        <div class="char-fin-label">💵 На руках (SA$)</div>
         <div class="char-fin-val" id="charCash">$0</div>
+        <div class="char-vc-row" id="charVcBox" title="Наличные в Vice City">
+          <span class="char-vc-tag">🌴 VC$</span>
+          <span class="char-vc-val" id="charVcCash">0</span>
+        </div>
       </div>
       <div class="char-fin-card bank">
         <div class="char-fin-label">🏦 Счет в банке</div>
@@ -2485,6 +2512,7 @@
             level: 38,
             exp: '84/156',
             cash: 48500000,
+            vcCash: 64716,
             bank: 350000000,
             deposit: 200000000,
             az: 18450,
@@ -2777,6 +2805,7 @@
         document.getElementById('charExpText').textContent = '— / —';
         document.getElementById('charExpFill').style.width = '0%';
         document.getElementById('charCash').textContent = '$0';
+        document.getElementById('charVcCash').textContent = '0';
         document.getElementById('charBank').textContent = '$0';
         document.getElementById('charDeposit').textContent = '$0';
         document.getElementById('charAz').textContent = '0 AZ';
@@ -2794,8 +2823,16 @@
       const inv = charData.inventory || {};
 
       document.getElementById('charName').textContent = p.name || 'Игрок Arizona RP';
-      document.getElementById('charLevel').textContent = '⚡ Ур. ' + (p.level || 0);
-      document.getElementById('charVip').textContent = p.vip ? ('👑 ' + p.vip) : '👑 Без VIP';
+      document.getElementById('charLevel').textContent = '⚡ Ур. ' + (p.level || '—');
+      
+      // VIP Status
+      if (p.vip && p.vip !== 'Нет') {
+        const vipName = p.vip.toLowerCase().includes('vip') ? p.vip : (p.vip + ' VIP');
+        document.getElementById('charVip').textContent = '👑 ' + vipName;
+      } else {
+        document.getElementById('charVip').textContent = '👑 Без VIP';
+      }
+
       document.getElementById('charPhone').textContent = p.phone ? ('📱 ' + p.phone) : '📱 Нет номера';
 
       // EXP progress
@@ -2814,6 +2851,7 @@
 
       // Finances
       document.getElementById('charCash').textContent = fmtMoney(p.cash);
+      document.getElementById('charVcCash').textContent = Number(p.vcCash || 0).toLocaleString('ru-RU');
       document.getElementById('charBank').textContent = fmtMoney(p.bank);
       document.getElementById('charDeposit').textContent = fmtMoney(p.deposit);
       document.getElementById('charAz').textContent = Number(p.az || 0).toLocaleString('ru-RU') + ' AZ';

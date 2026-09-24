@@ -464,6 +464,50 @@
       color: #f3e8ff;
     }
 
+    .char-btc-row {
+      margin-top: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 7px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 6px;
+      font-size: 11px;
+      max-width: 100%;
+      cursor: default;
+    }
+    .char-btc-tag {
+      font-weight: 700;
+      color: #f59e0b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+    .char-btc-val {
+      font-family: monospace;
+      font-weight: 600;
+      color: #fef3c7;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .char-btc-rate-badge {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fbbf24;
+      font-family: monospace;
+      letter-spacing: 0.2px;
+    }
+
     /* Work / Org Card */
     .char-info-card {
       background: var(--card-bg);
@@ -1620,6 +1664,10 @@
       <div class="char-fin-card bank">
         <div class="char-fin-label">🏦 Счет в банке</div>
         <div class="char-fin-val" id="charBank">$0</div>
+        <div class="char-btc-row" id="charBtcBox" title="Стоимость Bitcoin в инвентаре по биржевому курсу">
+          <span class="char-btc-tag">₿ BTC</span>
+          <span class="char-btc-val" id="charBtcWorth">$0</span>
+        </div>
       </div>
       <div class="char-fin-card deposit">
         <div class="char-fin-label">🪙 Депозит</div>
@@ -1654,6 +1702,7 @@
     <div class="char-info-card">
       <div class="char-info-title">
         <span>🎒 Ценности в инвентаре</span>
+        <span class="char-btc-rate-badge" id="charBtcRateBadge" title="Биржевой курс 1 BTC к доллару (1:1 в SA$)">₿ $0</span>
       </div>
       <div class="char-inv-grid">
         <div class="char-inv-item">
@@ -1881,6 +1930,9 @@
 
       if (tabName === 'payday') {
         setTimeout(renderChart, 50);
+      }
+      if (tabName === 'character') {
+        fetchBtcRate();
       }
     }
 
@@ -2862,6 +2914,129 @@
       renderCharacterTab(data.character);
     }
 
+    // ==================== BITCOIN EXCHANGE RATE & WORTH ====================
+    let btcPriceUsd = 0;
+    let btcPriceFetchPromise = null;
+    let lastBtcFetchTs = 0;
+
+    async function fetchBtcRate() {
+      const now = Date.now();
+      // Cache in memory for 5 minutes
+      if (btcPriceUsd > 0 && (now - lastBtcFetchTs < 300000)) {
+        return btcPriceUsd;
+      }
+
+      // Check sessionStorage cache
+      try {
+        const cached = sessionStorage.getItem('app_btc_price');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.price > 0 && (now - parsed.ts < 300000)) {
+            btcPriceUsd = parsed.price;
+            lastBtcFetchTs = parsed.ts;
+            return btcPriceUsd;
+          }
+        }
+      } catch (e) {}
+
+      if (btcPriceFetchPromise) return btcPriceFetchPromise;
+
+      btcPriceFetchPromise = (async () => {
+        let fetchedPrice = 0;
+
+        // 1. Primary: blockchain.info (CORS enabled, highly available, no country restrictions)
+        try {
+          const resp = await fetch('https://blockchain.info/ticker');
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.USD && data.USD.last) {
+              fetchedPrice = Math.round(Number(data.USD.last));
+            }
+          }
+        } catch (err) {
+          console.warn('Blockchain.info BTC ticker failed, trying fallback...', err);
+        }
+
+        // 2. Secondary fallback: CoinLore API
+        if (!fetchedPrice) {
+          try {
+            const resp = await fetch('https://api.coinlore.net/api/ticker/?id=90');
+            if (resp.ok) {
+              const data = await resp.json();
+              if (Array.isArray(data) && data[0] && data[0].price_usd) {
+                fetchedPrice = Math.round(Number(data[0].price_usd));
+              }
+            }
+          } catch (err) {
+            console.warn('CoinLore BTC ticker failed, trying CoinGecko...', err);
+          }
+        }
+
+        // 3. Tertiary fallback: CoinGecko API
+        if (!fetchedPrice) {
+          try {
+            const resp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data && data.bitcoin && data.bitcoin.usd) {
+                fetchedPrice = Math.round(Number(data.bitcoin.usd));
+              }
+            }
+          } catch (err) {
+            console.warn('CoinGecko BTC ticker failed:', err);
+          }
+        }
+
+        if (fetchedPrice > 0) {
+          btcPriceUsd = fetchedPrice;
+          lastBtcFetchTs = Date.now();
+          try {
+            sessionStorage.setItem('app_btc_price', JSON.stringify({ price: btcPriceUsd, ts: lastBtcFetchTs }));
+          } catch (e) {}
+        }
+
+        btcPriceFetchPromise = null;
+        return btcPriceUsd;
+      })();
+
+      return btcPriceFetchPromise;
+    }
+
+    function updateBtcWorth(btcAmount) {
+      const worthEl = document.getElementById('charBtcWorth');
+      const boxEl = document.getElementById('charBtcBox');
+      const rateEl = document.getElementById('charBtcRateBadge');
+
+      const count = Number(btcAmount) || 0;
+
+      function render(price) {
+        if (price > 0) {
+          const totalVal = Math.round(count * price);
+          if (worthEl) worthEl.textContent = fmtMoney(totalVal);
+          if (rateEl) {
+            rateEl.textContent = '₿ $' + price.toLocaleString('ru-RU');
+            rateEl.title = 'Биржевой курс 1 BTC = $' + price.toLocaleString('ru-RU') + ' (1:1 в SA$)';
+          }
+          if (boxEl) {
+            boxEl.title = `${count.toLocaleString('ru-RU')} BTC × $${price.toLocaleString('ru-RU')} = ${fmtMoney(totalVal)} SA$`;
+          }
+        } else {
+          if (worthEl) worthEl.textContent = '$0';
+          if (rateEl) rateEl.textContent = '₿ —';
+          if (boxEl) boxEl.title = 'Курс BTC загружается...';
+        }
+      }
+
+      if (btcPriceUsd > 0) {
+        render(btcPriceUsd);
+      } else {
+        render(0);
+        fetchBtcRate().then(price => {
+          if (price > 0) render(price);
+        });
+      }
+    }
+
     function renderCharacterTab(charData) {
       const stateBadge = document.getElementById('charStateBadge');
       if (!charData) {
@@ -2886,6 +3061,7 @@
         document.getElementById('charTalonAz').textContent = '0';
         document.getElementById('charBtc').textContent = '0';
         document.getElementById('charAsc').textContent = '0';
+        updateBtcWorth(0);
         document.getElementById('charSyncTime').textContent = 'Данные ещё не собраны в игре';
         return;
       }
@@ -2962,6 +3138,7 @@
       document.getElementById('charTalonAz').textContent = Number(inv.azTalon || 0).toLocaleString('ru-RU');
       document.getElementById('charBtc').textContent = Number(inv.btc || 0).toLocaleString('ru-RU');
       document.getElementById('charAsc').textContent = Number(inv.asc || 0).toLocaleString('ru-RU');
+      updateBtcWorth(Number(inv.btc || 0));
 
       // Sync timestamp
       const updTs = Number(charData.updatedAt || p.updatedAt) || 0;
@@ -3184,6 +3361,7 @@
     canvasEl.addEventListener('click', handleChartTouch);
 
     // Initial launch (silent load without toast)
+    fetchBtcRate();
     refreshData(false);
   </script>
 </body>

@@ -337,6 +337,31 @@
       border: 1px solid rgba(59, 130, 246, 0.35);
       color: #93c5fd;
     }
+    .char-badge.online {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+    }
+    .char-badge.warn {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fbbf24;
+    }
+    .char-badge.danger {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+
+    .btn-rec {
+      background: rgba(239, 68, 68, 0.12) !important;
+      border: 1px solid rgba(239, 68, 68, 0.3) !important;
+      color: #f87171 !important;
+    }
+    .btn-rec:active {
+      transform: scale(0.97);
+      background: rgba(239, 68, 68, 0.22) !important;
+    }
 
     .char-exp-box {
       background: rgba(0, 0, 0, 0.28);
@@ -1546,6 +1571,7 @@
         <div class="char-title-box">
           <div class="char-name" id="charName">Загрузка данных...</div>
           <div class="char-badges">
+            <span class="char-badge online" id="charStateBadge">🟢 В игре</span>
             <span class="char-badge lvl" id="charLevel">⚡ Ур. —</span>
             <span class="char-badge vip" id="charVip">👑 VIP: —</span>
             <span class="char-badge phone" id="charPhone">📱 —</span>
@@ -1638,9 +1664,14 @@
       <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45; margin-bottom: 12px;">
         Статистика и инвентарь сканируются автоматически в игре каждые 30 минут <b>через 10 секунд после каждого PayDay</b>.
       </p>
-      <button class="btn-action" onclick="sendCommand('scan')">
-        🔄 Запустить /scan вручную
-      </button>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <button class="btn-action" onclick="sendCommand('scan')">
+          🔄 /scan вручную
+        </button>
+        <button class="btn-action btn-rec" onclick="sendCommand('rec')">
+          ⚡ Реконнект (/rec)
+        </button>
+      </div>
       <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 8px;" id="charSyncTime">
         Синхронизировано: —
       </div>
@@ -1838,7 +1869,7 @@
     // Send Command to Bot
     function sendCommand(cmd) {
       if (isTg && tg.HapticFeedback) {
-        if (cmd === 'stop') {
+        if (cmd === 'stop' || cmd === 'rec') {
           tg.HapticFeedback.notificationOccurred('warning');
         } else if (cmd === 'farm') {
           tg.HapticFeedback.impactOccurred('heavy');
@@ -1852,7 +1883,11 @@
         return;
       }
 
-      showToast(`Отправка /${cmd}...`);
+      if (cmd === 'rec') {
+        showToast('Отправка команды /rec в чат...', '⚡');
+      } else {
+        showToast(`Отправка /${cmd}...`);
+      }
 
       if (isTg) {
         setTimeout(() => {
@@ -2528,6 +2563,12 @@
             btc: 480,
             asc: 165
           },
+          status: {
+            state: 'spawned',
+            stateText: 'В игре',
+            updatedAt: Math.floor(Date.now() / 1000),
+            reconnectIn: 0
+          },
           updatedAt: Math.floor(Date.now() / 1000)
         }
       };
@@ -2797,7 +2838,12 @@
     }
 
     function renderCharacterTab(charData) {
+      const stateBadge = document.getElementById('charStateBadge');
       if (!charData) {
+        if (stateBadge) {
+          stateBadge.className = 'char-badge danger';
+          stateBadge.textContent = '🔴 Не в сети';
+        }
         document.getElementById('charName').textContent = 'Нет данных';
         document.getElementById('charLevel').textContent = '⚡ Ур. —';
         document.getElementById('charVip').textContent = '👑 VIP: —';
@@ -2817,6 +2863,32 @@
         document.getElementById('charAsc').textContent = '0';
         document.getElementById('charSyncTime').textContent = 'Данные ещё не собраны в игре';
         return;
+      }
+
+      // Connection & Character state badge
+      const status = charData.status || {};
+      if (stateBadge) {
+        const state = status.state || 'spawned';
+        const remSec = Number(status.reconnectIn) || 0;
+        if (state === 'spawned') {
+          stateBadge.className = 'char-badge online';
+          stateBadge.textContent = '🟢 В игре';
+        } else if (state === 'connected') {
+          stateBadge.className = 'char-badge warn';
+          stateBadge.textContent = '🟡 Авторизация';
+        } else if (state === 'connecting') {
+          stateBadge.className = 'char-badge warn';
+          stateBadge.textContent = '🟡 Подключение...';
+        } else if (state === 'reconnecting') {
+          stateBadge.className = 'char-badge danger';
+          stateBadge.textContent = '⏳ Реконнект ' + (remSec > 0 ? '(' + remSec + 'с)' : '...');
+        } else if (state === 'disconnected') {
+          stateBadge.className = 'char-badge danger';
+          stateBadge.textContent = '🔴 Не в сети';
+        } else {
+          stateBadge.className = 'char-badge lvl';
+          stateBadge.textContent = '⚪ ' + (status.stateText || 'Неизвестно');
+        }
       }
 
       const p = charData.player || {};

@@ -208,21 +208,23 @@
       backdrop-filter: blur(16px);
       display: flex;
       justify-content: space-around;
-      padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)) 16px;
+      padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px)) 6px;
       z-index: 90;
       box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
     }
 
     .tab-item {
+      flex: 1;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
       cursor: pointer;
       color: var(--text-muted);
       transition: all 0.2s ease;
       position: relative;
-      padding: 4px 16px;
+      padding: 4px 2px;
       border-radius: 12px;
     }
 
@@ -252,6 +254,198 @@
       font-weight: 600;
       letter-spacing: 0.2px;
     }
+
+    /* Character Profile Tab */
+    .char-profile-card {
+      background: linear-gradient(135deg, rgba(30, 27, 75, 0.65) 0%, rgba(22, 25, 41, 0.85) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      border-radius: 16px;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(12px);
+    }
+    .char-profile-card::after {
+      content: "";
+      position: absolute;
+      top: -30px;
+      right: -30px;
+      width: 110px;
+      height: 110px;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .char-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .char-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+      flex-shrink: 0;
+    }
+    .char-title-box {
+      flex: 1;
+      min-width: 0;
+    }
+    .char-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+    .char-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .char-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 8px;
+    }
+    .char-badge.vip {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fbbf24;
+    }
+    .char-badge.lvl {
+      background: rgba(139, 92, 246, 0.18);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      color: #c4b5fd;
+    }
+    .char-badge.phone {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      color: #93c5fd;
+    }
+
+    .char-exp-box {
+      background: rgba(0, 0, 0, 0.28);
+      border-radius: 10px;
+      padding: 8px 12px;
+      margin-top: 10px;
+    }
+    .char-exp-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      margin-bottom: 5px;
+    }
+    .char-exp-labels span:first-child { color: var(--text-muted); }
+    .char-exp-labels span:last-child { color: #c4b5fd; font-weight: 600; font-family: monospace; }
+    .char-exp-track {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .char-exp-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #8b5cf6, #ec4899);
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+
+    /* Finances Grid */
+    .char-finance-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .char-fin-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px;
+      backdrop-filter: blur(10px);
+    }
+    .char-fin-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .char-fin-val {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      font-family: monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .char-fin-card.cash .char-fin-val { color: #34d399; }
+    .char-fin-card.bank .char-fin-val { color: #60a5fa; }
+    .char-fin-card.deposit .char-fin-val { color: #fbbf24; }
+    .char-fin-card.az .char-fin-val { color: #a78bfa; }
+
+    /* Work / Org Card */
+    .char-info-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 14px;
+      backdrop-filter: blur(10px);
+    }
+    .char-info-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #ffffff;
+    }
+    .char-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 12.5px;
+      gap: 8px;
+    }
+    .char-row:last-child { border-bottom: none; }
+    .char-row-label { color: var(--text-muted); flex-shrink: 0; }
+    .char-row-val { font-weight: 600; color: #f1f5f9; text-align: right; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Valuables Grid */
+    .char-inv-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .char-inv-item {
+      background: rgba(14, 16, 26, 0.65);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 6px;
+      text-align: center;
+    }
+    .char-inv-icon { font-size: 20px; margin-bottom: 4px; }
+    .char-inv-val { font-size: 14px; font-weight: 700; color: #ffffff; margin-bottom: 2px; }
+    .char-inv-lbl { font-size: 10.5px; color: var(--text-muted); }
 
     /* Tab content panes */
     .tab-pane {
@@ -1320,6 +1514,112 @@
     </div>
   </section>
 
+  <!-- ==================== TAB 4: CHARACTER & INVENTORY ==================== -->
+  <section id="tabCharacter" class="tab-pane">
+    <!-- Profile Card -->
+    <div class="char-profile-card">
+      <div class="char-header">
+        <div class="char-avatar" id="charAvatar">👤</div>
+        <div class="char-title-box">
+          <div class="char-name" id="charName">Загрузка данных...</div>
+          <div class="char-badges">
+            <span class="char-badge lvl" id="charLevel">⚡ Ур. —</span>
+            <span class="char-badge vip" id="charVip">👑 VIP: —</span>
+            <span class="char-badge phone" id="charPhone">📱 —</span>
+          </div>
+        </div>
+      </div>
+      <div class="char-exp-box">
+        <div class="char-exp-labels">
+          <span>Опыт (EXP)</span>
+          <span id="charExpText">— / —</span>
+        </div>
+        <div class="char-exp-track">
+          <div class="char-exp-fill" id="charExpFill" style="width: 0%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Finances Grid -->
+    <div class="char-finance-grid">
+      <div class="char-fin-card cash">
+        <div class="char-fin-label">💵 На руках</div>
+        <div class="char-fin-val" id="charCash">$0</div>
+      </div>
+      <div class="char-fin-card bank">
+        <div class="char-fin-label">🏦 Счет в банке</div>
+        <div class="char-fin-val" id="charBank">$0</div>
+      </div>
+      <div class="char-fin-card deposit">
+        <div class="char-fin-label">🪙 Депозит</div>
+        <div class="char-fin-val" id="charDeposit">$0</div>
+      </div>
+      <div class="char-fin-card az">
+        <div class="char-fin-label">💎 AZ-Coins</div>
+        <div class="char-fin-val" id="charAz">0 AZ</div>
+      </div>
+    </div>
+
+    <!-- Organization & Job -->
+    <div class="char-info-card">
+      <div class="char-info-title">
+        <span>🏢 Организация и работа</span>
+      </div>
+      <div class="char-row">
+        <span class="char-row-label">Организация</span>
+        <span class="char-row-val" id="charOrg">—</span>
+      </div>
+      <div class="char-row">
+        <span class="char-row-label">Должность / Ранг</span>
+        <span class="char-row-val" id="charRank">—</span>
+      </div>
+      <div class="char-row">
+        <span class="char-row-label">Работа</span>
+        <span class="char-row-val" id="charJob">—</span>
+      </div>
+    </div>
+
+    <!-- Key Resources in Inventory -->
+    <div class="char-info-card">
+      <div class="char-info-title">
+        <span>🎒 Ценности в инвентаре</span>
+      </div>
+      <div class="char-inv-grid">
+        <div class="char-inv-item">
+          <div class="char-inv-icon">💎</div>
+          <div class="char-inv-val" id="charTalonAz">0</div>
+          <div class="char-inv-lbl">Талоны AZ</div>
+        </div>
+        <div class="char-inv-item">
+          <div class="char-inv-icon">₿</div>
+          <div class="char-inv-val" id="charBtc">0</div>
+          <div class="char-inv-lbl">Bitcoin</div>
+        </div>
+        <div class="char-inv-item">
+          <div class="char-inv-icon">🔷</div>
+          <div class="char-inv-val" id="charAsc">0</div>
+          <div class="char-inv-lbl">ASC</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto-scan Info Banner & Refresh Button -->
+    <div class="settings-card" style="margin-bottom: 0;">
+      <div class="settings-title">
+        <span>⏱️ Автоматический парсинг</span>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45; margin-bottom: 12px;">
+        Статистика и инвентарь сканируются автоматически в игре каждые 30 минут <b>через 10 секунд после каждого PayDay</b>.
+      </p>
+      <button class="btn-action" onclick="sendCommand('scan')">
+        🔄 Запустить /scan вручную
+      </button>
+      <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 8px;" id="charSyncTime">
+        Синхронизировано: —
+      </div>
+    </div>
+  </section>
+
   <!-- ==================== TAB 3: SETTINGS ==================== -->
   <section id="tabSettings" class="tab-pane">
     <div class="settings-card">
@@ -1371,6 +1671,10 @@
     <div class="tab-item" onclick="switchTab('payday')">
       <div class="tab-icon">📊</div>
       <div class="tab-label">PayDay</div>
+    </div>
+    <div class="tab-item" onclick="switchTab('character')">
+      <div class="tab-icon">👤</div>
+      <div class="tab-label">Персонаж</div>
     </div>
     <div class="tab-item" onclick="switchTab('settings')">
       <div class="tab-icon">⚙️</div>
@@ -1484,7 +1788,7 @@
       // Update nav items
       const tabItems = document.querySelectorAll('.tab-item');
       tabItems.forEach((item, idx) => {
-        const names = ['mining', 'farmStats', 'payday', 'settings'];
+        const names = ['mining', 'farmStats', 'payday', 'character', 'settings'];
         if (names[idx] === tabName) {
           item.classList.add('active');
         } else {
@@ -1496,6 +1800,7 @@
       document.getElementById('tabMining').classList.toggle('active', tabName === 'mining');
       document.getElementById('tabFarmStats').classList.toggle('active', tabName === 'farmStats');
       document.getElementById('tabPayday').classList.toggle('active', tabName === 'payday');
+      document.getElementById('tabCharacter').classList.toggle('active', tabName === 'character');
       document.getElementById('tabSettings').classList.toggle('active', tabName === 'settings');
 
       if (tabName === 'payday') {
@@ -1928,7 +2233,8 @@
         dailyMonth,
         recentPaydays: paydayList.slice(0, 30),
         mining: mining,
-        miningProfit: miningProfit
+        miningProfit: miningProfit,
+        character: rawData.character || null
       };
     }
 
@@ -2172,6 +2478,29 @@
               coolantIssues: []
             }
           ]
+        },
+        character: {
+          player: {
+            name: 'Nikes_Arizona',
+            level: 38,
+            exp: '84/156',
+            cash: 48500000,
+            bank: 350000000,
+            deposit: 200000000,
+            az: 18450,
+            org: 'Больница ЛС',
+            rank: 'Зам. Глав. Врача [9]',
+            job: 'Пилот гражданской авиации',
+            vip: 'Premium VIP',
+            phone: '777-555',
+            updatedAt: Math.floor(Date.now() / 1000)
+          },
+          inventory: {
+            azTalon: 78,
+            btc: 480,
+            asc: 165
+          },
+          updatedAt: Math.floor(Date.now() / 1000)
         }
       };
 
@@ -2434,6 +2763,80 @@
 
       // 5. Chart
       renderChart();
+
+      // 6. Character stats
+      renderCharacterTab(data.character);
+    }
+
+    function renderCharacterTab(charData) {
+      if (!charData) {
+        document.getElementById('charName').textContent = 'Нет данных';
+        document.getElementById('charLevel').textContent = '⚡ Ур. —';
+        document.getElementById('charVip').textContent = '👑 VIP: —';
+        document.getElementById('charPhone').textContent = '📱 —';
+        document.getElementById('charExpText').textContent = '— / —';
+        document.getElementById('charExpFill').style.width = '0%';
+        document.getElementById('charCash').textContent = '$0';
+        document.getElementById('charBank').textContent = '$0';
+        document.getElementById('charDeposit').textContent = '$0';
+        document.getElementById('charAz').textContent = '0 AZ';
+        document.getElementById('charOrg').textContent = '—';
+        document.getElementById('charRank').textContent = '—';
+        document.getElementById('charJob').textContent = '—';
+        document.getElementById('charTalonAz').textContent = '0';
+        document.getElementById('charBtc').textContent = '0';
+        document.getElementById('charAsc').textContent = '0';
+        document.getElementById('charSyncTime').textContent = 'Данные ещё не собраны в игре';
+        return;
+      }
+
+      const p = charData.player || {};
+      const inv = charData.inventory || {};
+
+      document.getElementById('charName').textContent = p.name || 'Игрок Arizona RP';
+      document.getElementById('charLevel').textContent = '⚡ Ур. ' + (p.level || 0);
+      document.getElementById('charVip').textContent = p.vip ? ('👑 ' + p.vip) : '👑 Без VIP';
+      document.getElementById('charPhone').textContent = p.phone ? ('📱 ' + p.phone) : '📱 Нет номера';
+
+      // EXP progress
+      const expStr = String(p.exp || '');
+      let expFillPercent = 0;
+      if (expStr.includes('/')) {
+        const parts = expStr.split('/');
+        const currentExp = parseInt(parts[0], 10) || 0;
+        const targetExp = parseInt(parts[1], 10) || 1;
+        expFillPercent = Math.min(100, Math.max(0, Math.round((currentExp / targetExp) * 100)));
+        document.getElementById('charExpText').textContent = `${currentExp} / ${targetExp} (${expFillPercent}%)`;
+      } else {
+        document.getElementById('charExpText').textContent = expStr || '— / —';
+      }
+      document.getElementById('charExpFill').style.width = expFillPercent + '%';
+
+      // Finances
+      document.getElementById('charCash').textContent = fmtMoney(p.cash);
+      document.getElementById('charBank').textContent = fmtMoney(p.bank);
+      document.getElementById('charDeposit').textContent = fmtMoney(p.deposit);
+      document.getElementById('charAz').textContent = Number(p.az || 0).toLocaleString('ru-RU') + ' AZ';
+
+      // Organization & Career
+      document.getElementById('charOrg').textContent = p.org || 'Не состоит';
+      document.getElementById('charRank').textContent = p.rank || '—';
+      document.getElementById('charJob').textContent = p.job || 'Безработный';
+
+      // Valuable inventory items
+      document.getElementById('charTalonAz').textContent = Number(inv.azTalon || 0).toLocaleString('ru-RU');
+      document.getElementById('charBtc').textContent = Number(inv.btc || 0).toLocaleString('ru-RU');
+      document.getElementById('charAsc').textContent = Number(inv.asc || 0).toLocaleString('ru-RU');
+
+      // Sync timestamp
+      const updTs = Number(charData.updatedAt || p.updatedAt) || 0;
+      if (updTs > 0) {
+        const m = getMskDate(updTs);
+        const timeStr = `${String(m.hour).padStart(2, '0')}:${String(m.minute).padStart(2, '0')}:${String(m.sec).padStart(2, '0')}`;
+        document.getElementById('charSyncTime').textContent = `Синхронизировано: ${timeStr} (МСК), ${m.day}.${String(m.month).padStart(2, '0')}.${m.year}`;
+      } else {
+        document.getElementById('charSyncTime').textContent = 'Синхронизировано: недавно';
+      }
     }
 
     // ==================== INTERACTIVE CANVAS CHART ====================

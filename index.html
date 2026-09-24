@@ -282,6 +282,13 @@
       gap: 14px;
       margin-bottom: 12px;
     }
+    .char-avatar-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
     .char-avatar {
       width: 52px;
       height: 52px;
@@ -293,6 +300,15 @@
       font-size: 26px;
       box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
       flex-shrink: 0;
+    }
+    .char-avatar-status {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 6px;
+      white-space: nowrap;
+      text-align: center;
+      line-height: 1.3;
     }
     .char-title-box {
       flex: 1;
@@ -1567,11 +1583,13 @@
     <!-- Profile Card -->
     <div class="char-profile-card">
       <div class="char-header">
-        <div class="char-avatar" id="charAvatar">👤</div>
+        <div class="char-avatar-col">
+          <div class="char-avatar" id="charAvatar">👤</div>
+          <span class="char-badge online char-avatar-status" id="charStateBadge">🟢 В игре</span>
+        </div>
         <div class="char-title-box">
           <div class="char-name" id="charName">Загрузка данных...</div>
           <div class="char-badges">
-            <span class="char-badge online" id="charStateBadge">🟢 В игре</span>
             <span class="char-badge lvl" id="charLevel">⚡ Ур. —</span>
             <span class="char-badge vip" id="charVip">👑 VIP: —</span>
             <span class="char-badge phone" id="charPhone">📱 —</span>
@@ -2848,7 +2866,7 @@
       const stateBadge = document.getElementById('charStateBadge');
       if (!charData) {
         if (stateBadge) {
-          stateBadge.className = 'char-badge danger';
+          stateBadge.className = 'char-badge danger char-avatar-status';
           stateBadge.textContent = '🔴 Не в сети';
         }
         document.getElementById('charName').textContent = 'Нет данных';
@@ -2878,22 +2896,22 @@
         const state = status.state || 'spawned';
         const remSec = Number(status.reconnectIn) || 0;
         if (state === 'spawned') {
-          stateBadge.className = 'char-badge online';
+          stateBadge.className = 'char-badge online char-avatar-status';
           stateBadge.textContent = '🟢 В игре';
         } else if (state === 'connected') {
-          stateBadge.className = 'char-badge warn';
+          stateBadge.className = 'char-badge warn char-avatar-status';
           stateBadge.textContent = '🟡 Авторизация';
         } else if (state === 'connecting') {
-          stateBadge.className = 'char-badge warn';
+          stateBadge.className = 'char-badge warn char-avatar-status';
           stateBadge.textContent = '🟡 Подключение...';
         } else if (state === 'reconnecting') {
-          stateBadge.className = 'char-badge danger';
+          stateBadge.className = 'char-badge danger char-avatar-status';
           stateBadge.textContent = '⏳ Реконнект ' + (remSec > 0 ? '(' + remSec + 'с)' : '...');
         } else if (state === 'disconnected') {
-          stateBadge.className = 'char-badge danger';
+          stateBadge.className = 'char-badge danger char-avatar-status';
           stateBadge.textContent = '🔴 Не в сети';
         } else {
-          stateBadge.className = 'char-badge lvl';
+          stateBadge.className = 'char-badge lvl char-avatar-status';
           stateBadge.textContent = '⚪ ' + (status.stateText || 'Неизвестно');
         }
       }

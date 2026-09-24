@@ -1867,7 +1867,14 @@
     }
 
     // Send Command to Bot
+    let lastCmdTimestamp = 0;
     function sendCommand(cmd) {
+      const now = Date.now();
+      if (now - lastCmdTimestamp < 1500) {
+        return; // Prevent rapid clicking/spamming
+      }
+      lastCmdTimestamp = now;
+
       if (isTg && tg.HapticFeedback) {
         if (cmd === 'stop' || cmd === 'rec') {
           tg.HapticFeedback.notificationOccurred('warning');

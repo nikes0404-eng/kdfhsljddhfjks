@@ -1970,7 +1970,7 @@
           if (cmd === 'farm') {
             progressRequestedAt = Date.now();
             progressIdleStreak = 0;
-            showProgressPanel('Запуск сбора...', 0, 0);
+            showProgressPanel('Запуск сбора...', '⏳', 0);
             startProgressPolling(true);
           }
           return;
@@ -2008,8 +2008,12 @@
     // reads a tiny progress node written by the game script. Both are separate
     // from the big users/<id>.json tree, so polling stays cheap.
     let progressTimer = null;
+    let progressTickTimer = null;
     let progressRequestedAt = 0;
     let progressIdleStreak = 0;
+    let lastProgress = null;
+    let lastProgressWasActive = false;
+    let autoRefreshTimer = null;
 
     function getUserBaseUrl() {
       const raw = getCloudUrl();
@@ -2046,14 +2050,14 @@
       }
     }
 
-    function showProgressPanel(phase, done, total) {
+    function showProgressPanel(phaseText, countText, pct) {
       const panel = document.getElementById('farmProgress');
       if (!panel) return;
       panel.style.display = 'block';
-      document.getElementById('progressPhase').textContent = phase;
-      document.getElementById('progressCount').textContent = `${done} / ${total}`;
-      const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0;
-      document.getElementById('progressFill').style.width = pct + '%';
+      document.getElementById('progressPhase').textContent = phaseText;
+      document.getElementById('progressCount').textContent = countText;
+      const clamped = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
+      document.getElementById('progressFill').style.width = clamped + '%';
     }
 
     function hideProgressPanel() {
@@ -2063,9 +2067,14 @@
 
     function startProgressPolling(force) {
       if (force) progressIdleStreak = 0;
-      if (progressTimer) return;
-      fetchProgress();
-      progressTimer = setInterval(fetchProgress, 2000);
+      if (!progressTimer) {
+        fetchProgress();
+        progressTimer = setInterval(fetchProgress, 2000);
+      }
+      if (!progressTickTimer) {
+        // Local 500 ms ticker: the tax countdown keeps moving between network reads.
+        progressTickTimer = setInterval(drawProgress, 500);
+      }
     }
 
     function stopProgressPolling() {
@@ -2073,6 +2082,24 @@
         clearInterval(progressTimer);
         progressTimer = null;
       }
+      if (progressTickTimer) {
+        clearInterval(progressTickTimer);
+        progressTickTimer = null;
+      }
+    }
+
+    // The script sends: active, phase, done, current, total, started, btc, asc,
+    // updatedAt (+ taxIn / taxEnd while the tax payment is pending).
+    function taxDeadlineMs(p) {
+      if (!p) return 0;
+      if (p.taxEnd) return Number(p.taxEnd) * 1000;
+      if (p.taxIn && p.updatedAt) return (Number(p.updatedAt) + Number(p.taxIn)) * 1000;
+      return 0;
+    }
+
+    function formatClock(totalSec) {
+      const s = Math.max(0, Math.floor(Number(totalSec) || 0));
+      return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
     }
 
     async function fetchProgress() {
@@ -2081,45 +2108,104 @@
       try {
         const resp = await fetch(base + '/progress.json', { cache: 'no-cache' });
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        renderProgress(await resp.json());
+        const data = await resp.json();
+        if (data === null && lastProgress && lastProgress.active === true) {
+          // Missing/cleared node: never tear down a card for a run we know is live.
+          return;
+        }
+        renderProgress(data);
       } catch (e) {
         console.warn('[Progress] fetch failed:', e);
       }
     }
 
+    // Redraws the card from the last payload. Runs both on every poll and on the
+    // local ticker, so the countdown does not depend on how fast Firebase answers.
+    function drawProgress() {
+      const p = lastProgress;
+      if (!p) return;
+      const phase = String(p.phase || 'idle');
+      const total = Number(p.total) || 0;
+      const done = Number(p.done) || 0;
+      const current = Number(p.current) || 0;
+      let phaseText = 'Сбор прибыли';
+      let countText = `${done} / ${total}`;
+      let pct = total > 0 ? (done / total) * 100 : 0;
+
+      if (phase === 'collect') {
+        if (current > 0 && total > 0) phaseText = `Сбор дома ${current} из ${total}`;
+      } else if (phase === 'finish') {
+        phaseText = 'Сбор завершён';
+        countText = total > 0 ? `${total} / ${total}` : '✔';
+        pct = 100;
+      } else if (phase === 'tax_wait') {
+        const endMs = taxDeadlineMs(p);
+        const totalSec = Number(p.taxIn) || 0;
+        const leftSec = endMs > 0 ? Math.round((endMs - Date.now()) / 1000) : totalSec;
+        if (leftSec > 0) {
+          phaseText = 'Автооплата налогов через';
+          countText = formatClock(leftSec);
+          pct = totalSec > 0 ? ((totalSec - leftSec) / totalSec) * 100 : 0;
+        } else {
+          phaseText = 'Отправляю /tax в игру...';
+          countText = '00:00';
+          pct = 100;
+        }
+      } else if (phase === 'tax') {
+        phaseText = 'Идёт автооплата налогов';
+        countText = '⏳';
+        pct = 100;
+      }
+
+      showProgressPanel(phaseText, countText, pct);
+      document.getElementById('progressBtc').textContent = `${Math.round(Number(p.btc) || 0)} BTC`;
+      document.getElementById('progressAsc').textContent = `${Math.round(Number(p.asc) || 0)} ASC`;
+    }
+
     function renderProgress(p) {
       const nowSec = Math.floor(Date.now() / 1000);
-      const fresh = !!(p && p.updatedAt && (nowSec - Number(p.updatedAt) <= 120));
+      // The tax wait is legitimately quiet for up to ~4 minutes; the old 120 s
+      // freshness window hid the card in the middle of it.
+      const fresh = !!(p && p.updatedAt && (nowSec - Number(p.updatedAt) <= 900));
       const phase = p ? String(p.phase || 'idle') : 'idle';
       const live = !!(p && (p.active === true || (phase !== 'idle' && fresh)));
 
       if (!live) {
         // Grace window right after a button press, before the script reacts.
         if (progressRequestedAt && (Date.now() - progressRequestedAt < 45000)) {
-          showProgressPanel('Запуск сбора...', 0, 0);
+          showProgressPanel('Запуск сбора...', '⏳', 0);
           return;
         }
+        // Grace expired: clear the flag so a later refresh cannot resurrect an
+        // empty "Запуск сбора..." card (that was the flicker after a manual pull).
+        progressRequestedAt = 0;
+        lastProgress = null;
+        lastProgressWasActive = false;
         hideProgressPanel();
         stopProgressPolling();
         return;
       }
 
       progressIdleStreak = 0;
-      const done = Number(p.done) || 0;
-      const total = Number(p.total) || 0;
-      const phaseText =
-        phase === 'finish' ? 'Завершение сбора' :
-        phase === 'tax_wait' ? ('Ожидание автооплаты налогов' + (p.taxIn ? ` (${p.taxIn} с)` : '')) :
-        phase === 'tax' ? 'Автооплата налогов' :
-        'Сбор прибыли';
-      showProgressPanel(phaseText, done, total);
-      document.getElementById('progressBtc').textContent = `${Math.round(Number(p.btc) || 0)} BTC`;
-      document.getElementById('progressAsc').textContent = `${Math.round(Number(p.asc) || 0)} ASC`;
+      lastProgress = p;
+      drawProgress();
 
-      // A finished run stays visible briefly, then the panel closes itself.
+      if (lastProgressWasActive && p.active !== true) {
+        // The script writes its mining report right after the run ends, so pull
+        // fresh telemetry in instead of leaving the dashboard on stale numbers.
+        setTimeout(() => { if (typeof refreshData === 'function') refreshData(false); }, 3000);
+      }
+      lastProgressWasActive = (p.active === true);
+
+      // A finished run stays visible briefly, then the card closes itself.
       if (!p.active && phase === 'finish') {
         progressIdleStreak++;
-        if (progressIdleStreak > 30) { hideProgressPanel(); stopProgressPolling(); }
+        if (progressIdleStreak > 30) {
+          hideProgressPanel();
+          stopProgressPolling();
+          lastProgress = null;
+          progressRequestedAt = 0;
+        }
       }
     }
 
@@ -2612,8 +2698,10 @@
           appData = processed;
           updateUI(processed);
           if (processed.progress && (processed.progress.active === true || (processed.progress.phase && processed.progress.phase !== 'idle'))) {
-            progressRequestedAt = Date.now();
-            startProgressPolling(true);
+            // Resume tracking a farm that is already running. Deliberately NOT arming
+            // progressRequestedAt here: that used to pop an empty "Запуск сбора..."
+            // card on every manual refresh of an idle farm.
+            startProgressPolling(false);
           }
           updateSyncStatus('online', 'Онлайн (' + (processed.updatedAtStr ? processed.updatedAtStr.split(' ')[1] : 'сейчас') + ')');
           if (isManual) {
@@ -3510,9 +3598,26 @@
     canvasEl.addEventListener('touchmove', handleChartTouch);
     canvasEl.addEventListener('click', handleChartTouch);
 
+    // ---- Auto refresh: telemetry stays current without a manual pull ----
+    function startAutoRefresh() {
+      if (autoRefreshTimer) return;
+      autoRefreshTimer = setInterval(() => {
+        if (isDemo) return;
+        if (document.visibilityState && document.visibilityState !== 'visible') return;
+        // While a run is live, progress.json already carries fresh numbers.
+        if (lastProgress && lastProgress.active === true) return;
+        refreshData(false);
+      }, 30000);
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && !isDemo) refreshData(false);
+    });
+
     // Initial launch (silent load without toast)
     fetchBtcRate();
     refreshData(false);
+    startAutoRefresh();
   </script>
 </body>
 </html>

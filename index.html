@@ -17,13 +17,9 @@
       --accent-glow: rgba(157, 140, 255, 0.35);
       --accent-grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
       --success: #10b981;
-      --success-glow: rgba(16, 185, 129, 0.35);
       --warning: #f59e0b;
-      --warning-glow: rgba(245, 158, 11, 0.35);
       --danger: #ef4444;
-      --danger-glow: rgba(239, 68, 68, 0.35);
       --cyan: #06b6d4;
-      --cyan-glow: rgba(6, 182, 212, 0.35);
       --gold: #fbbf24;
     }
 
@@ -616,48 +612,6 @@
     .btn-arrow {
       font-size: 20px;
       color: rgba(255, 255, 255, 0.7);
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .btn-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 16px 14px;
-      color: var(--text-main);
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
-      cursor: pointer;
-      backdrop-filter: blur(12px);
-      transition: all 0.15s ease;
-    }
-    .btn-card:active {
-      transform: scale(0.97);
-      background: rgba(30, 33, 50, 0.95);
-    }
-    .btn-card-icon {
-      font-size: 24px;
-    }
-    .btn-card-title {
-      font-size: 15px;
-      font-weight: 600;
-    }
-    .btn-card-desc {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-    .btn-card.stop {
-      border-color: rgba(239, 68, 68, 0.25);
-    }
-    .btn-card.stop:active {
-      background: rgba(239, 68, 68, 0.15);
     }
 
     /* Mining telemetry card */
@@ -2025,9 +1979,6 @@
       return `${m.year}-${String(m.month).padStart(2, '0')}-${String(m.day).padStart(2, '0')}`;
     }
 
-    // Alias for backward compatibility
-    const getGameDateStr = getMskDateStr;
-
     function processIncomingCloudData(rawData) {
       if (!rawData || typeof rawData !== 'object') return rawData;
 
@@ -2817,10 +2768,6 @@
         if (taxesPaidEl) {
           taxesPaidEl.textContent = fmtMoney(m.taxesPaid || 0);
         }
-        const housesEl = document.getElementById('mineHouses');
-        if (housesEl) {
-          housesEl.textContent = m.housesCount || 0;
-        }
         document.getElementById('miningActiveStatus').textContent = m.active ? '⚡ Сбор активен' : 'Готов к работе';
 
         const lastTimeEl = document.getElementById('mineLastTime');
@@ -3324,9 +3271,7 @@
     function handleChartTouch(evt) {
       const rect = canvasEl.getBoundingClientRect();
       const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-      const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
       const touchX = clientX - rect.left;
-      const touchY = clientY - rect.top;
 
       let found = null;
       for (const bar of chartBars) {

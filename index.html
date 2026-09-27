@@ -1319,6 +1319,33 @@
       color: var(--text-muted, #9aa0b4);
       margin-top: 8px;
     }
+    /* Result of the last command (fed by progress.json -> ack) */
+    .task-ack {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #a7f3d0;
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+    .task-ack b { color: #6ee7b7; }
+    .progress-actions {
+      display: none;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+    .progress-stop {
+      background: rgba(239, 68, 68, 0.16);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -1373,16 +1400,22 @@
       <div class="btn-arrow">→</div>
     </div>
 
-    <!-- Live farm progress (fed by Firebase users/<id>/progress.json) -->
+    <!-- Result of the last command (fed by Firebase users/<id>/progress.json -> ack) -->
+    <div id="taskAck" class="task-ack" style="display: none;"></div>
+
+    <!-- Live task progress (fed by Firebase users/<id>/progress.json) -->
     <div id="farmProgress" class="progress-card" style="display: none;">
       <div class="progress-head">
         <span class="progress-phase" id="progressPhase">Сбор прибыли</span>
         <span class="progress-count" id="progressCount">0 / 0</span>
       </div>
       <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="progress-foot">
+      <div class="progress-foot" id="progressFoot">
         <span id="progressBtc">0 BTC</span>
         <span id="progressAsc">0 ASC</span>
+      </div>
+      <div class="progress-actions" id="progressActions">
+        <button class="progress-stop" onclick="sendCommand('stop')">⛔ Остановить сбор</button>
       </div>
     </div>
 
@@ -2014,6 +2047,9 @@
     let lastProgress = null;
     let lastProgressWasActive = false;
     let autoRefreshTimer = null;
+    let progressRunning = false;
+    let lastAckTs = 0;
+    let ackTimer = null;
 
     function getUserBaseUrl() {
       const raw = getCloudUrl();
@@ -2065,21 +2101,40 @@
       if (panel) panel.style.display = 'none';
     }
 
+    // progress.json carries both the live task state and the answer to the last
+    // command, so the reader runs the whole time the MiniApp is open: every 3 s
+    // while a task is live and every 7 s otherwise (a read is ~300 bytes). It
+    // pauses while the tab is hidden.
+    const TASK_POLL_ACTIVE_MS = 3000;
+    const TASK_POLL_IDLE_MS = 7000;
+
+    function taskIsLive() {
+      const p = lastProgress;
+      if (!p) return false;
+      return p.active === true || (!!p.phase && p.phase !== 'idle');
+    }
+
+    async function progressLoop() {
+      if (progressRunning) await fetchProgress();
+      if (!progressRunning) return;
+      progressTimer = setTimeout(progressLoop, taskIsLive() ? TASK_POLL_ACTIVE_MS : TASK_POLL_IDLE_MS);
+    }
+
     function startProgressPolling(force) {
       if (force) progressIdleStreak = 0;
-      if (!progressTimer) {
-        fetchProgress();
-        progressTimer = setInterval(fetchProgress, 2000);
-      }
+      if (progressRunning) return;
+      progressRunning = true;
+      progressLoop();
       if (!progressTickTimer) {
-        // Local 500 ms ticker: the tax countdown keeps moving between network reads.
+        // Local 500 ms ticker: counters keep moving between network reads.
         progressTickTimer = setInterval(drawProgress, 500);
       }
     }
 
     function stopProgressPolling() {
+      progressRunning = false;
       if (progressTimer) {
-        clearInterval(progressTimer);
+        clearTimeout(progressTimer);
         progressTimer = null;
       }
       if (progressTickTimer) {
@@ -2119,6 +2174,34 @@
       }
     }
 
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    }
+
+    // The script mirrors the result of the last command into progress.json (ack),
+    // so every command gets a visible answer here instead of only in the bot chat.
+    function renderAck(p) {
+      const a = p && p.ack;
+      if (!a) return;
+      const ts = Number(a.ts) || 0;
+      if (ts <= lastAckTs) return;
+      const first = (lastAckTs === 0);
+      lastAckTs = ts;
+      if (!first) showAck(a);
+    }
+
+    function showAck(a) {
+      const el = document.getElementById('taskAck');
+      if (!el) return;
+      const cmd = escapeHtml(String(a.cmd || '').replace(/^\//, ''));
+      const msg = escapeHtml(a.message || '');
+      const icon = a.ok === false ? '⚠️' : '✅';
+      el.innerHTML = `<span>${icon}</span> <b>/${cmd}</b> ${msg}`;
+      el.style.display = 'block';
+      if (ackTimer) clearTimeout(ackTimer);
+      ackTimer = setTimeout(() => { el.style.display = 'none'; }, 8000);
+    }
+
     // Redraws the card from the last payload. Runs both on every poll and on the
     // local ticker, so the countdown does not depend on how fast Firebase answers.
     function drawProgress() {
@@ -2153,9 +2236,28 @@
         }
       } else if (phase === 'tax') {
         phaseText = 'Идёт автооплата налогов';
-        countText = '⏳';
-        pct = 100;
+        if (total > 0) {
+          // done counts finished steps, so show the step being processed now.
+          countText = `${Math.max(1, Math.min(total, done + 1))} / ${total}`;
+          pct = (done / total) * 100;
+        } else {
+          countText = '⏳';
+          pct = 100;
+        }
       }
+
+      // Any command can supply its own heading: the script sends a ready title, so
+      // new tasks need no changes here.
+      if (p.title) phaseText = String(p.title);
+
+      const farmTask = (phase === 'collect' || phase === 'finish' || phase === 'tax' || phase === 'tax_wait');
+      const foot = document.getElementById('progressFoot');
+      if (foot) foot.style.display = farmTask ? 'flex' : 'none';
+      const actions = document.getElementById('progressActions');
+      // The stop button belongs to the farm run only: /stop cannot cancel a scan
+      // or a tax payment.
+      const canStop = (p.active === true && (phase === 'collect' || phase === 'finish'));
+      if (actions) actions.style.display = canStop ? 'flex' : 'none';
 
       showProgressPanel(phaseText, countText, pct);
       document.getElementById('progressBtc').textContent = `${Math.round(Number(p.btc) || 0)} BTC`;
@@ -2164,6 +2266,7 @@
 
     function renderProgress(p) {
       const nowSec = Math.floor(Date.now() / 1000);
+      renderAck(p);
       // The tax wait is legitimately quiet for up to ~4 minutes; the old 120 s
       // freshness window hid the card in the middle of it.
       const fresh = !!(p && p.updatedAt && (nowSec - Number(p.updatedAt) <= 900));
@@ -2182,7 +2285,7 @@
         lastProgress = null;
         lastProgressWasActive = false;
         hideProgressPanel();
-        stopProgressPolling();
+        // The reader keeps running: it also delivers command answers.
         return;
       }
 
@@ -2202,7 +2305,6 @@
         progressIdleStreak++;
         if (progressIdleStreak > 30) {
           hideProgressPanel();
-          stopProgressPolling();
           lastProgress = null;
           progressRequestedAt = 0;
         }
@@ -3611,13 +3713,20 @@
     }
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && !isDemo) refreshData(false);
+      if (document.visibilityState === 'visible') {
+        if (!isDemo) refreshData(false);
+        startProgressPolling(false);
+      } else {
+        // Hidden tab: stop reading to save traffic and battery.
+        stopProgressPolling();
+      }
     });
 
     // Initial launch (silent load without toast)
     fetchBtcRate();
     refreshData(false);
     startAutoRefresh();
+    startProgressPolling(false);
   </script>
 </body>
 </html>

@@ -1281,6 +1281,44 @@
       width: 100%;
       cursor: pointer;
     }
+    /* Live farm progress (MiniApp <- Firebase progress.json) */
+    .progress-card {
+      background: linear-gradient(135deg, rgba(157, 140, 255, 0.16), rgba(99, 102, 241, 0.07));
+      border: 1px solid rgba(157, 140, 255, 0.35);
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .progress-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .progress-phase { color: var(--text, #e5e7eb); }
+    .progress-count { color: var(--accent, #9d8cff); font-variant-numeric: tabular-nums; }
+    .progress-track {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #9d8cff, #63e6be);
+      transition: width 0.4s ease;
+    }
+    .progress-foot {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted, #9aa0b4);
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body>
@@ -1333,6 +1371,19 @@
         </div>
       </div>
       <div class="btn-arrow">→</div>
+    </div>
+
+    <!-- Live farm progress (fed by Firebase users/<id>/progress.json) -->
+    <div id="farmProgress" class="progress-card" style="display: none;">
+      <div class="progress-head">
+        <span class="progress-phase" id="progressPhase">Сбор прибыли</span>
+        <span class="progress-count" id="progressCount">0 / 0</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-foot">
+        <span id="progressBtc">0 BTC</span>
+        <span id="progressAsc">0 ASC</span>
+      </div>
     </div>
 
     <!-- Mining Telemetry -->
@@ -1892,7 +1943,7 @@
 
     // Send Command to Bot
     let lastCmdTimestamp = 0;
-    function sendCommand(cmd) {
+    async function sendCommand(cmd) {
       const now = Date.now();
       if (now - lastCmdTimestamp < 1500) {
         return; // Prevent rapid clicking/spamming
@@ -1909,6 +1960,25 @@
         }
       }
 
+      // Preferred path: cloud command channel. Telegram sendData is one-shot per
+      // session and closes the MiniApp, so we send the command through Firebase
+      // (users/<id>/command.json) and keep the app open with a live progress bar.
+      if (!isDemo && getUserBaseUrl()) {
+        const sent = await writeCloudCommand(cmd);
+        if (sent) {
+          showToast(`Команда /${cmd} отправлена через облако`, '☁️');
+          if (cmd === 'farm') {
+            progressRequestedAt = Date.now();
+            progressIdleStreak = 0;
+            showProgressPanel('Запуск сбора...', 0, 0);
+            startProgressPolling(true);
+          }
+          return;
+        }
+        showToast('Облако недоступно — отправляю через Telegram', '⚠️');
+      }
+
+      // Fallback: Telegram sendData (closes the MiniApp).
       if (isFromMenu) {
         document.getElementById('menuModal').style.display = 'flex';
         return;
@@ -1930,6 +2000,126 @@
         }, 150);
       } else {
         console.log(`[Preview] Command sent: ${cmd}`);
+      }
+    }
+
+    // ==================== CLOUD COMMAND CHANNEL ====================
+    // The MiniApp writes a tiny command node (open-write in Firebase rules) and
+    // reads a tiny progress node written by the game script. Both are separate
+    // from the big users/<id>.json tree, so polling stays cheap.
+    let progressTimer = null;
+    let progressRequestedAt = 0;
+    let progressIdleStreak = 0;
+
+    function getUserBaseUrl() {
+      const raw = getCloudUrl();
+      if (!raw) return '';
+      let url = raw.trim().replace(/[/]+$/, '').replace(/[.]json$/, '');
+      if (url.indexOf('/users/') !== -1) return url;
+      const userKey = getChatId() || 'default';
+      return `${url}/users/${userKey}`;
+    }
+
+    async function writeCloudCommand(cmd) {
+      const base = getUserBaseUrl();
+      if (!base) return false;
+      const token = (appData && appData.cmdToken) ? String(appData.cmdToken) : '';
+      const payload = JSON.stringify({
+        cmd: cmd,
+        token: token,
+        id: String(Date.now()) + '-' + String(Math.floor(Math.random() * 100000)),
+        ts: Math.floor(Date.now() / 1000),
+        src: 'miniapp'
+      });
+      try {
+        const resp = await fetch(base + '/command.json', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        console.log('[Cmd] Sent via cloud:', cmd);
+        return true;
+      } catch (e) {
+        console.warn('[Cmd] Cloud write failed:', e);
+        return false;
+      }
+    }
+
+    function showProgressPanel(phase, done, total) {
+      const panel = document.getElementById('farmProgress');
+      if (!panel) return;
+      panel.style.display = 'block';
+      document.getElementById('progressPhase').textContent = phase;
+      document.getElementById('progressCount').textContent = `${done} / ${total}`;
+      const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0;
+      document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    function hideProgressPanel() {
+      const panel = document.getElementById('farmProgress');
+      if (panel) panel.style.display = 'none';
+    }
+
+    function startProgressPolling(force) {
+      if (force) progressIdleStreak = 0;
+      if (progressTimer) return;
+      fetchProgress();
+      progressTimer = setInterval(fetchProgress, 2000);
+    }
+
+    function stopProgressPolling() {
+      if (progressTimer) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+      }
+    }
+
+    async function fetchProgress() {
+      const base = getUserBaseUrl();
+      if (!base) { stopProgressPolling(); return; }
+      try {
+        const resp = await fetch(base + '/progress.json', { cache: 'no-cache' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        renderProgress(await resp.json());
+      } catch (e) {
+        console.warn('[Progress] fetch failed:', e);
+      }
+    }
+
+    function renderProgress(p) {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const fresh = !!(p && p.updatedAt && (nowSec - Number(p.updatedAt) <= 120));
+      const phase = p ? String(p.phase || 'idle') : 'idle';
+      const live = !!(p && (p.active === true || (phase !== 'idle' && fresh)));
+
+      if (!live) {
+        // Grace window right after a button press, before the script reacts.
+        if (progressRequestedAt && (Date.now() - progressRequestedAt < 45000)) {
+          showProgressPanel('Запуск сбора...', 0, 0);
+          return;
+        }
+        hideProgressPanel();
+        stopProgressPolling();
+        return;
+      }
+
+      progressIdleStreak = 0;
+      const done = Number(p.done) || 0;
+      const total = Number(p.total) || 0;
+      const phaseText =
+        phase === 'finish' ? 'Завершение сбора' :
+        phase === 'tax_wait' ? ('Ожидание автооплаты налогов' + (p.taxIn ? ` (${p.taxIn} с)` : '')) :
+        phase === 'tax' ? 'Автооплата налогов' :
+        'Сбор прибыли';
+      showProgressPanel(phaseText, done, total);
+      document.getElementById('progressBtc').textContent = `${Math.round(Number(p.btc) || 0)} BTC`;
+      document.getElementById('progressAsc').textContent = `${Math.round(Number(p.asc) || 0)} ASC`;
+
+      // A finished run stays visible briefly, then the panel closes itself.
+      if (!p.active && phase === 'finish') {
+        progressIdleStreak++;
+        if (progressIdleStreak > 30) { hideProgressPanel(); stopProgressPolling(); }
       }
     }
 
@@ -2325,7 +2515,9 @@
         recentPaydays: paydayList.slice(0, 30),
         mining: mining,
         miningProfit: miningProfit,
-        character: rawData.character || null
+        character: rawData.character || null,
+        cmdToken: rawData.cmdToken || null,
+        progress: rawData.progress || null
       };
     }
 
@@ -2419,6 +2611,10 @@
           const processed = processIncomingCloudData(data);
           appData = processed;
           updateUI(processed);
+          if (processed.progress && (processed.progress.active === true || (processed.progress.phase && processed.progress.phase !== 'idle'))) {
+            progressRequestedAt = Date.now();
+            startProgressPolling(true);
+          }
           updateSyncStatus('online', 'Онлайн (' + (processed.updatedAtStr ? processed.updatedAtStr.split(' ')[1] : 'сейчас') + ')');
           if (isManual) {
             showToast('Данные загружены из облака', '✅');

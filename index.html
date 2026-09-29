@@ -1175,6 +1175,136 @@
       color: var(--gold);
     }
 
+    /* === CASES (AutoNewCase) UI === */
+    .cases-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      backdrop-filter: blur(12px);
+    }
+    .cases-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cases-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .cases-status {
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-muted);
+    }
+    .cases-status.live {
+      background: rgba(251, 191, 36, 0.15);
+      color: var(--gold);
+    }
+    .cases-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .cases-stat {
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 9px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .cases-stat b {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+    .cases-stat b.cyan { color: var(--cyan); }
+    .cases-stat b.gold { color: var(--gold); }
+    .cases-stat span {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .cases-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .cases-runs {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .cases-run {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 9px;
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 11.5px;
+      color: #d1d5db;
+    }
+    .cases-run.bad {
+      border-color: rgba(251, 191, 36, 0.25);
+    }
+    .cases-run .when {
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .cases-run .nums {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .cases-run .nums .shards {
+      color: var(--gold);
+      font-weight: 600;
+    }
+    .cases-run .nums .dur {
+      color: var(--text-muted);
+    }
+    .cases-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .cases-chip {
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(34, 211, 238, 0.10);
+      border: 1px solid rgba(34, 211, 238, 0.18);
+      color: #d1d5db;
+    }
+    .cases-chip b {
+      color: var(--cyan);
+      font-weight: 600;
+    }
+    .cases-empty {
+      width: 100%;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 12px;
+    }
+    /* === /CASES (AutoNewCase) UI === */
+
     /* TAB 3: Settings */
     .settings-card {
       background: var(--card-bg);
@@ -1690,74 +1820,37 @@
 
   <!-- ==================== TAB 4: CASES (AutoNewCase) ==================== -->
   <section id="tabCases" class="tab-pane">
-    <!-- Сводка за всё время: собирается из истории case_runs -->
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-label">Кейсов открыто</span>
-          <span id="caseRunsBadge" class="kpi-badge">0 прогонов</span>
-        </div>
-        <div id="caseTotalOpened" class="kpi-value">0</div>
-        <div class="kpi-sub">
-          <span>🎁</span>
-          <span id="caseLastRun">Прогонов ещё не было</span>
-        </div>
+    <!-- Сводка за всё время и история прогонов: одна карточка вместо четырёх KPI -->
+    <div class="cases-card">
+      <div class="cases-head">
+        <span class="cases-title">🎁 Кейсы</span>
+        <span id="caseRunStatus" class="cases-status">Простой</span>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-label">Оставлено предметов</span>
-          <span class="kpi-badge cyan">Ценные</span>
-        </div>
-        <div id="caseTotalKept" class="kpi-value cyan">0</div>
-        <div class="kpi-sub">
-          <span>💠</span>
-          <span>не раскалываются</span>
-        </div>
+      <div class="cases-stats">
+        <div class="cases-stat"><b id="caseTotalOpened">0</b><span>открыто</span></div>
+        <div class="cases-stat"><b id="caseTotalKept" class="cyan">0</b><span>оставлено</span></div>
+        <div class="cases-stat"><b id="caseTotalSold">0</b><span>расколото</span></div>
+        <div class="cases-stat"><b id="caseTotalShards" class="gold">0</b><span>осколков</span></div>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-label">Расколото предметов</span>
-          <span class="kpi-badge">Всего</span>
-        </div>
-        <div id="caseTotalSold" class="kpi-value">0</div>
-        <div class="kpi-sub">
-          <span>🔨</span>
-          <span>подробно не расписывается</span>
-        </div>
+      <div class="cases-meta">
+        <span id="caseRunsBadge">0 прогонов</span>
+        <span id="caseLastRun">Прогонов ещё не было</span>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-label">Осколков получено</span>
-          <span class="kpi-badge gold">Всего</span>
-        </div>
-        <div id="caseTotalShards" class="kpi-value gold">0</div>
-        <div class="kpi-sub">
-          <span>🪙</span>
-          <span>осколки для кейсов</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Оставленные (ценные) предметы за всё время -->
-    <div class="farm-history-card">
-      <div class="farm-history-header">
-        <span>💠 Оставленные предметы</span>
-      </div>
-      <div id="caseKeptList" class="farm-history-list">
+      <div id="caseRunsList" class="cases-runs">
         <!-- Rendered dynamically -->
       </div>
     </div>
 
-    <!-- История прогонов -->
-    <div class="recent-card">
-      <div class="recent-header" style="display: flex; justify-content: space-between; align-items: center;">
-        <span>🕒 Последние прогоны</span>
-        <span id="caseRunStatus" class="kpi-badge">Простой</span>
+    <!-- Оставленные (ценные) предметы за всё время: чипы -->
+    <div class="farm-history-card">
+      <div class="farm-history-header" style="justify-content: space-between;">
+        <span>💠 Оставленные предметы</span>
+        <span id="caseKeptTotal" class="kpi-badge cyan">0 шт.</span>
       </div>
-      <div id="caseRunsList" class="recent-list">
+      <div id="caseKeptList" class="cases-chips">
         <!-- Rendered dynamically -->
       </div>
     </div>
@@ -3451,6 +3544,19 @@
     }
 
     /* ---- Кейсы (AutoNewCase): прогоны и оставленные предметы ---- */
+    // Вкладка намеренно лаконична: сводка — четыре числа в одной строке,
+    // прогон — одна строка, оставленные предметы — чипы. Дубли сведены к нулю:
+    // числа прогона живут только в его строке, названия предметов — только в
+    // блоке оставленных предметов.
+    function caseRunsWord(n) {
+      const v = Math.abs(Number(n) || 0) % 100;
+      const t = v % 10;
+      if (v > 10 && v < 20) return 'прогонов';
+      if (t === 1) return 'прогон';
+      if (t >= 2 && t <= 4) return 'прогона';
+      return 'прогонов';
+    }
+
     function renderCases(cases) {
       const c = cases || {};
       const totals = c.totals || {};
@@ -3459,22 +3565,26 @@
       const openedEl = document.getElementById('caseTotalOpened');
       if (!openedEl) return;
 
-      openedEl.textContent = (totals.opened || 0).toLocaleString('ru-RU');
-      document.getElementById('caseTotalKept').textContent = (totals.kept || 0).toLocaleString('ru-RU');
-      document.getElementById('caseTotalSold').textContent = (totals.sold || 0).toLocaleString('ru-RU');
-      document.getElementById('caseTotalShards').textContent = (totals.shards || 0).toLocaleString('ru-RU');
-      document.getElementById('caseRunsBadge').textContent = (totals.runs || 0) + ' прогонов';
+      const num = (v) => Number(v || 0).toLocaleString('ru-RU');
+
+      openedEl.textContent = num(totals.opened);
+      document.getElementById('caseTotalKept').textContent = num(totals.kept);
+      document.getElementById('caseTotalSold').textContent = num(totals.sold);
+      document.getElementById('caseTotalShards').textContent = num(totals.shards);
+
+      const runs = Number(totals.runs) || 0;
+      document.getElementById('caseRunsBadge').textContent = runs + ' ' + caseRunsWord(runs);
 
       const statusEl = document.getElementById('caseRunStatus');
       if (statusEl) {
         statusEl.textContent = st.running ? ('Идёт: цель ' + (st.target || 0)) : 'Простой';
-        statusEl.style.color = st.running ? '#fbbf24' : '';
+        statusEl.classList.toggle('live', !!st.running);
       }
 
       const lastEl = document.getElementById('caseLastRun');
       if (lastEl) {
-        lastEl.textContent = totals.runs > 0
-          ? ('Последний: ' + (totals.lastTimeStr || '--:--') + (totals.lastDateStr ? ' (' + totals.lastDateStr + ')' : ''))
+        lastEl.textContent = runs > 0
+          ? ('последний ' + (totals.lastDateStr ? totals.lastDateStr + ' ' : '') + (totals.lastTimeStr || '--:--'))
           : 'Прогонов ещё не было';
       }
 
@@ -3489,42 +3599,39 @@
 
       const runs = listData.caseRuns;
       if (runs.length === 0) {
-        container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">История появится после первого прогона /anc</div>';
+        container.innerHTML = '<div class="cases-empty">История появится после первого прогона /anc</div>';
         return;
       }
 
-      const shortName = (n) => {
-        const s = String(n || '');
-        return s.length > 22 ? (s.slice(0, 21) + '…') : s;
+      const shortDate = (d) => {
+        const p = String(d || '').split('-');
+        return p.length === 3 ? (p[2] + '.' + p[1]) : String(d || '');
       };
 
       let html = '';
       runs.slice(0, listShown.caseRuns).forEach(r => {
         let kept = r.keptItems;
         if (kept && !Array.isArray(kept) && typeof kept === 'object') kept = Object.values(kept);
-        if (!Array.isArray(kept)) kept = [];
+        const keptCount = Array.isArray(kept) ? kept.length : (Number(r.kept) || 0);
+
+        const bad = (r.ok === false);
+        const state = bad ? 'прервано' : (r.stopped ? 'остановлено' : 'завершено');
+        const icon = bad ? '⚠️' : (r.stopped ? '⏹' : '✅');
 
         const dur = Number(r.seconds) || 0;
-        const durText = dur >= 60 ? (Math.floor(dur / 60) + ' мин ' + (dur % 60) + ' с') : (dur > 0 ? dur + ' с' : '');
-        const bad = (r.ok === false);
-        const statusText = bad ? '⚠️ прервано' : (r.stopped ? '⏹ остановлено' : '✅ завершено');
+        const durText = dur >= 60 ? (Math.floor(dur / 60) + 'м ' + (dur % 60) + 'с') : (dur > 0 ? dur + 'с' : '');
+        const shards = Number(r.shards) || 0;
 
         html += `
-          <div class="recent-item">
-            <div class="recent-item-left">
-              <span class="recent-time">🕒 ${r.timeStr || '--:--'} МСК (${r.dateStr || ''}) • ${statusText}</span>
-              <div class="recent-pills">
-                <span class="recent-pill">🎁 открыто ${r.opened || 0} из ${r.target || 0}</span>
-                <span class="recent-pill">💠 оставлено ${r.kept || 0}</span>
-                <span class="recent-pill">🔨 расколото ${r.sold || 0}</span>
-                <span class="recent-pill">🪙 +${(Number(r.shards) || 0).toLocaleString('ru-RU')}</span>
-              </div>
-              ${kept.length ? `<div class="recent-pills">` + kept.map(it => `<span class="recent-pill">💠 ${shortName(it.name || ('ID ' + it.id))} ×${it.count || 0}</span>`).join('') + `</div>` : ''}
-            </div>
-            <div class="recent-item-right">
-              <div class="recent-amount" style="color:${bad ? '#fbbf24' : '#34d399'};">${r.opened || 0} кейсов</div>
-              <div class="recent-az" style="white-space: nowrap;">${durText}</div>
-            </div>
+          <div class="cases-run${bad ? ' bad' : ''}" title="${state}">
+            <span>${icon}</span>
+            <span class="when">${r.timeStr || '--:--'}${r.dateStr ? ' · ' + shortDate(r.dateStr) : ''}</span>
+            <span class="nums">
+              <span title="открыто из цели">${r.opened || 0}/${r.target || 0}</span>
+              ${keptCount ? `<span title="оставлено предметов">💠 ${keptCount}</span>` : ''}
+              <span class="shards" title="осколков">+${shards.toLocaleString('ru-RU')}</span>
+              ${durText ? `<span class="dur">${durText}</span>` : ''}
+            </span>
           </div>
         `;
       });
@@ -3536,27 +3643,21 @@
       const container = document.getElementById('caseKeptList');
       if (!container) return;
 
-      if (!items || items.length === 0) {
-        container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">Оставленных предметов пока нет</div>';
+      const list = items || [];
+      const totalEl = document.getElementById('caseKeptTotal');
+      if (totalEl) {
+        const sum = list.reduce((s, it) => s + (Number(it.count) || 0), 0);
+        totalEl.textContent = sum.toLocaleString('ru-RU') + ' шт.';
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = '<div class="cases-empty">Оставленных предметов пока нет</div>';
         return;
       }
 
-      let html = '';
-      items.forEach(it => {
-        html += `
-          <div class="farm-run-item">
-            <div class="farm-run-left">
-              <span style="font-size:12.5px; color:#fff; font-weight:600;">💠 ${it.name || ('ID ' + it.id)}</span>
-              <span class="farm-run-time">ID ${it.id || '—'}</span>
-            </div>
-            <div class="farm-run-right">
-              <span class="farm-run-btc" style="color:var(--cyan);">×${it.count || 0}</span>
-            </div>
-          </div>
-        `;
-      });
-
-      container.innerHTML = html;
+      container.innerHTML = list.map(it =>
+        `<span class="cases-chip">${it.name || ('ID ' + it.id)} <b>×${it.count || 0}</b></span>`
+      ).join('');
     }
 
     function updateUI(data) {

@@ -5090,6 +5090,14 @@
       // Слой Liquid Glass при первой синхронизации (animate = false) оставлял
       // пилюле инлайновый transition: none — она прыгала вместо того, чтобы
       // ехать. Снимаем это состояние, иначе слайдер остаётся без анимации.
+      // Класс панели трогаем ТОЛЬКО когда он реально меняется: даже remove()
+      // отсутствующего класса браузер записывает в атрибут, а на панели висит
+      // MutationObserver (у слоя живости) — лишняя запись поднимала бы его и
+      // вкладка переигрывала своё появление на обычном тапе.
+      function lgGrabbing(on) {
+        if (on === nav.classList.contains('lg-grabbing')) return;
+        nav.classList.toggle('lg-grabbing', on);
+      }
       function lgUnfreezePuck() {
         var p = lgPuck();
         if (p && p.style.transition === 'none') p.style.transition = '';
@@ -5134,7 +5142,7 @@
           var stuck = lgMetrics();
           var stuckIdx = lgIndexOf(activeTab);
           lgStopDragListeners();
-          nav.classList.remove('lg-grabbing');
+          lgGrabbing(false);
           var sp = lgPuck();
           if (sp) sp.style.transition = '';
           if (stuck[stuckIdx]) lgSetPuck(stuck[stuckIdx].left, stuck[stuckIdx].width, true);
@@ -5167,7 +5175,7 @@
           if (Math.abs(dx) > d.moved) d.moved = Math.abs(dx);
           if (d.moved < 5) return;
           if (!nav.classList.contains('lg-grabbing')) {
-            nav.classList.add('lg-grabbing');
+            lgGrabbing(true);
             lgHaptic();
           }
           // Пилюля встаёт под палец и идёт за ним ровно, а не смещается на дельту
@@ -5206,7 +5214,7 @@
 
       function lgFinishDrag(d, cancelled) {
         lgDrag = null;
-        nav.classList.remove('lg-grabbing');
+        lgGrabbing(false);
         if (d.moved < 5) {
           // Это тап — пусть сработает onclick. Если же жест отменили снаружи
           // (системный жест, потеря фокуса), класс вкладки не менялся, значит
@@ -5545,12 +5553,26 @@
 
       /* ---------- 4. Запуск ---------- */
       // Вкладка может смениться и кликом, и свайпом, и BackButton Telegram —
-      // поэтому следим за классом пункта, а не за конкретным жестом.
+      // поэтому следим за классом пункта, а не за конкретным жестом. Но сама
+      // смена класса — не признак переключения: любой слой может тронуть атрибут
+      // и на обычном тапе (именно так вкладка однажды переигрывала появление на
+      // касании панели). Поэтому сверяем САМ активный пункт.
+      function lgActiveTab() {
+        var it = nav && nav.querySelector('.tab-item.active');
+        return it ? it.textContent.trim() : '';
+      }
+      var lgLastTab = null;
       function lgWatchTabs() {
         if (!nav || typeof MutationObserver !== 'function') return;
-        new MutationObserver(function () {
+        lgLastTab = lgActiveTab();
+        function onChange() {
+          var now = lgActiveTab();
+          if (now === lgLastTab) return;
+          lgLastTab = now;
           requestAnimationFrame(function () { lgMotion(true); });
-        }).observe(nav, { attributes: true, attributeFilter: ['class'], subtree: true });
+        }
+        new MutationObserver(onChange)
+          .observe(nav, { attributes: true, attributeFilter: ['class'], subtree: true });
       }
       function lgWatchCounters() {
         if (typeof MutationObserver !== 'function') return;

@@ -1597,7 +1597,7 @@
           <div id="mineStarted" class="val">0</div>
         </div>
         <div class="telemetry-stat">
-          <div class="label">Налогов оплачено</div>
+          <div class="label">Налогов за сбор</div>
           <div id="mineTaxesPaid" class="val">$0</div>
         </div>
       </div>
@@ -2628,6 +2628,7 @@
           started: 0,
           housesCount: 0,
           taxesPaid: 0,
+          taxesPaidRun: 0,
           allCoolantOk: true,
           coolantIssues: [],
           history: [],
@@ -3171,6 +3172,7 @@
           started: 8,
           housesCount: 4,
           taxesPaid: 181200,
+          taxesPaidRun: 45200,
           allCoolantOk: false,
           coolantIssues: [
             { house: 421, count: 2, minCool: 8.2, isDanger: true },
@@ -3671,7 +3673,15 @@
         document.getElementById('mineStarted').textContent = m.started || 0;
         const taxesPaidEl = document.getElementById('mineTaxesPaid');
         if (taxesPaidEl) {
-          taxesPaidEl.textContent = fmtMoney(m.taxesPaid || 0);
+          // Налоги именно последнего прогона сбора: скрипт платит их сам сразу
+          // после обхода домов. Накопленную сумму за всё время отдаём подсказкой.
+          const runTax = (m.taxesPaidRun === undefined || m.taxesPaidRun === null)
+            ? null
+            : (Number(m.taxesPaidRun) || 0);
+          taxesPaidEl.textContent = (runTax === null) ? '—' : fmtMoney(runTax);
+          taxesPaidEl.title = (runTax === null)
+            ? 'Скрипт ещё не сообщал налог за сбор'
+            : ('Всего за всё время: ' + fmtMoney(m.taxesPaid || 0));
         }
         document.getElementById('miningActiveStatus').textContent = m.active ? '⚡ Сбор активен' : 'Готов к работе';
 

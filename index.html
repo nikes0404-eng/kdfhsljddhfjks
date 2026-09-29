@@ -1914,19 +1914,73 @@
        а возвращает обратно на отпускании — так пилюля идёт за пальцем без
        инерции, но пружинит к пункту, когда палец ушёл. */
     .lg-tab-indicator {
-      will-change: transform, width;
+      will-change: transform, width, scale;
+      /* Кромка стекла: светлая сверху, тёмная снизу, еле заметные боковые
+         отблески — так у пилюли читается толщина. Собрана в переменную, чтобы
+         состояние «в руке» меняло только внешнюю тень, а не всю кромку. */
+      --lg-pill-rim:
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.22),
+        inset 1px 0 0 rgba(255, 255, 255, 0.14),
+        inset -1px 0 0 rgba(255, 255, 255, 0.10);
+      box-shadow:
+        var(--lg-pill-rim),
+        0 1px 0 rgba(140, 190, 255, 0.22),
+        0 -1px 0 rgba(255, 170, 220, 0.16),
+        0 10px 22px rgba(0, 0, 0, 0.34);
+      /* Пилюля — тоже стекло: она лежит под содержимым пунктов, поэтому её
+         размытие читается как глубина между иконкой и подложкой панели. */
+      backdrop-filter: blur(8px) saturate(175%);
+      -webkit-backdrop-filter: blur(8px) saturate(175%);
       transition:
         transform 0.44s var(--lg-ease),
         width 0.44s var(--lg-ease),
+        scale 0.34s var(--lg-ease),
         box-shadow 0.3s ease,
         opacity 0.25s ease;
     }
-    /* Пилюля «взята» пальцем: чуть плотнее и с более глубокой тенью. */
+    /* Блик, который ходит за пальцем (--lg-pill-hx/hy ставит скрипт жеста),
+       плюс постоянный верхний отблеск. */
+    .lg-tab-indicator::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background:
+        radial-gradient(56% 78% at var(--lg-pill-hx, 50%) var(--lg-pill-hy, 4%),
+          rgba(255, 255, 255, 0.60), rgba(255, 255, 255, 0) 62%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 60%);
+      opacity: 0.7;
+      transition: opacity 0.25s ease;
+    }
+    /* Пилюля в руке: она подросла (scale — отдельное свойство, поэтому рост не
+       спорит с позицией, которую скрипт пишет в transform), а при движении
+       вытягивается по ходу с ужиманием поперёк — как капля. */
+    .tab-nav.lg-held .lg-tab-indicator {
+      scale: var(--lg-pill-sx, 1.07) var(--lg-pill-sy, 1.02);
+      opacity: 1;
+      backdrop-filter: blur(10px) saturate(185%);
+      -webkit-backdrop-filter: blur(10px) saturate(185%);
+      box-shadow:
+        var(--lg-pill-rim),
+        0 1px 0 rgba(140, 190, 255, 0.26),
+        0 -1px 0 rgba(255, 170, 220, 0.20),
+        0 16px 30px rgba(0, 0, 0, 0.44);
+    }
+    .tab-nav.lg-held .lg-tab-indicator::before { opacity: 0.95; }
     .tab-nav.lg-grabbing .lg-tab-indicator {
-      opacity: 0.97;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.44), 0 18px 34px rgba(0, 0, 0, 0.46);
+      opacity: 1;
+      box-shadow:
+        var(--lg-pill-rim),
+        0 1px 0 rgba(140, 190, 255, 0.28),
+        0 -1px 0 rgba(255, 170, 220, 0.22),
+        0 18px 34px rgba(0, 0, 0, 0.46);
     }
     .tab-nav.lg-grabbing { cursor: grabbing; }
+    /* Если движок не знает scale (старый WebView), рост не сработает — останется
+       хотя бы подсветка, поэтому она есть и без масштаба. */
+    .tab-nav.lg-held { --lg-pill-glow: 1; }
 
     /* Страница, которую тянут пальцем: едет за ним и мягко гаснет. */
     .tab-pane.lg-dragging {
@@ -1966,7 +2020,9 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .tab-nav.lg-grabbing .lg-tab-indicator { transition: none; }
+      .tab-nav.lg-grabbing .lg-tab-indicator,
+      .lg-tab-indicator { transition: none; }
+      .lg-tab-indicator::before { transition: none; }
       .tab-pane.lg-dragging { transform: none !important; opacity: 1 !important; }
       .tab-pane.lg-out-left, .tab-pane.lg-out-right,
       .tab-pane.active.lg-in-left, .tab-pane.active.lg-in-right {
@@ -5003,7 +5059,14 @@
        На первой и последней вкладке включается сопротивление.
        Вертикальный скролл не перехватывается: жест «залипает» на горизонтали
        только после явного перевеса по X. Тач по canvas графика игнорируется —
-       у него свои обработчики. При prefers-reduced-motion слайдер молчит. */
+       у него свои обработчики. При prefers-reduced-motion слайдер молчит.
+
+       3) Пилюля ведёт себя как жидкое стекло: пока её держат, она подрастает
+          (свойство scale, а не transform — иначе рост спорил бы с позицией,
+          которую пишет lgSetPuck), при быстром движении вытягивается по ходу
+          и ужимается поперёк, а блик уходит за пальцем. Кромки светятся сверху
+          и темнеют снизу, под пилюлей своё размытие — она читается как стекло,
+          лежащее на стекле панели. */
     (function () {
       var TABS = ['mining', 'farmStats', 'payday', 'cases', 'character', 'settings'];
       var nav = document.querySelector('.tab-nav');
@@ -5098,6 +5161,36 @@
         if (on === nav.classList.contains('lg-grabbing')) return;
         nav.classList.toggle('lg-grabbing', on);
       }
+      // Пилюля «в руке»: она подрастает, её блик уходит за пальцем, а скорость
+      // жеста вытягивает её по ходу движения. Переменные живут на панели, потому
+      // что пилюлю (и её размер) задаёт свойство scale, а не inline-transform:
+      // так рост не спорит с позицией, которую пишет lgSetPuck.
+      function lgPillHold(on) {
+        if (on === nav.classList.contains('lg-held')) return;
+        nav.classList.toggle('lg-held', on);
+        if (!on) {
+          lgPillStretch(0);
+          nav.style.removeProperty('--lg-pill-hx');
+          nav.style.removeProperty('--lg-pill-hy');
+        }
+      }
+      // Чем быстрее идёт палец, тем сильнее вытягивание — и на столько же уже
+      // поперёк: «капля» сохраняет объём, поэтому движение читается как жидкость.
+      function lgPillStretch(pxPerEvent) {
+        var s = Math.min(0.13, Math.abs(pxPerEvent || 0) / 260);
+        nav.style.setProperty('--lg-pill-sx', (1.07 + s).toFixed(3));
+        nav.style.setProperty('--lg-pill-sy', (1.02 - s * 0.45).toFixed(3));
+      }
+      // Блик идёт за пальцем: точка берётся в процентах от самой пилюли, поэтому
+      // работает и при вытягивании.
+      function lgPillGlint(x, y) {
+        var p = lgPuck();
+        if (!p || x == null) return;
+        var r = p.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        nav.style.setProperty('--lg-pill-hx', Math.round((x - r.left) / r.width * 100) + '%');
+        nav.style.setProperty('--lg-pill-hy', Math.round((y - r.top) / r.height * 100) + '%');
+      }
       function lgUnfreezePuck() {
         var p = lgPuck();
         if (p && p.style.transition === 'none') p.style.transition = '';
@@ -5152,9 +5245,15 @@
         var m = lgMetrics();
         if (!m.length) return;
         var idx = lgIndexOf(activeTab);
+        // Касание панели поднимает пилюлю сразу, ещё до сдвига: так она отзывается
+        // на палец, а не только на жест. (Тап без движения тоже поднимет и опустит
+        // её — как индикатор в iOS.)
+        lgPillHold(true);
+        lgPillGlint(e.clientX, e.clientY);
         lgDrag = {
           id: e.pointerId,
           x: e.clientX,
+          lastX: e.clientX,
           moved: 0,
           idx: idx,
           near: idx,
@@ -5184,6 +5283,9 @@
           var half = d.width / 2;
           var center = lgClamp(ev.clientX - d.base, d.min + half, d.max - half);
           lgSetPuck(center - half, d.width, false);
+          lgPillGlint(ev.clientX, ev.clientY);
+          lgPillStretch(ev.clientX - d.lastX);
+          d.lastX = ev.clientX;
           var over = lgNearest(center, d.m);
           if (over !== d.near) { d.near = over; lgHaptic(); }
         };
@@ -5215,6 +5317,7 @@
       function lgFinishDrag(d, cancelled) {
         lgDrag = null;
         lgGrabbing(false);
+        lgPillHold(false);   // пилюля опускается: рост, блик и вытягивание — назад
         if (d.moved < 5) {
           // Это тап — пусть сработает onclick. Если же жест отменили снаружи
           // (системный жест, потеря фокуса), класс вкладки не менялся, значит
@@ -5289,6 +5392,8 @@
           s.axis = 'x';
           s.w = window.innerWidth || document.documentElement.clientWidth || 360;
           s.m = lgMetrics();
+          // Страницу листают — пилюля тоже в руке: подрастает и тянется за жестом.
+          lgPillHold(true);
           s.pane.classList.add('lg-dragging');
           var p = lgPuck();
           if (p) p.style.transition = 'none';
@@ -5307,11 +5412,16 @@
         var a = s.m[s.idx];
         var b = s.m[to];
         if (a && b) lgSetPuck(lgLerp(a.left, b.left, t), lgLerp(a.width, b.width, t), false);
+        lgPillGlint(e.touches[0].clientX, e.touches[0].clientY);
+        lgPillStretch(dx - (s.lastDx == null ? dx : s.lastDx));
+        s.lastDx = dx;
       }, { passive: false });
 
       function lgEndSwipe() {
         var s = lgSwipe;
         lgSwipe = null;
+        // Пока палец тянет саму пилюлю, жест страницы не может её «отпустить».
+        if (!lgDrag) lgPillHold(false);
         if (!s || s.axis !== 'x') return;
         var last = TABS.length - 1;
         var off = s.off;

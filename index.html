@@ -1688,7 +1688,82 @@
     </div>
   </section>
 
-  <!-- ==================== TAB 4: CHARACTER & INVENTORY ==================== -->
+  <!-- ==================== TAB 4: CASES (AutoNewCase) ==================== -->
+  <section id="tabCases" class="tab-pane">
+    <!-- Сводка за всё время: собирается из истории case_runs -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Кейсов открыто</span>
+          <span id="caseRunsBadge" class="kpi-badge">0 прогонов</span>
+        </div>
+        <div id="caseTotalOpened" class="kpi-value">0</div>
+        <div class="kpi-sub">
+          <span>🎁</span>
+          <span id="caseLastRun">Прогонов ещё не было</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Оставлено предметов</span>
+          <span class="kpi-badge cyan">Ценные</span>
+        </div>
+        <div id="caseTotalKept" class="kpi-value cyan">0</div>
+        <div class="kpi-sub">
+          <span>💠</span>
+          <span>не раскалываются</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Расколото предметов</span>
+          <span class="kpi-badge">Всего</span>
+        </div>
+        <div id="caseTotalSold" class="kpi-value">0</div>
+        <div class="kpi-sub">
+          <span>🔨</span>
+          <span>подробно не расписывается</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Осколков получено</span>
+          <span class="kpi-badge gold">Всего</span>
+        </div>
+        <div id="caseTotalShards" class="kpi-value gold">0</div>
+        <div class="kpi-sub">
+          <span>🪙</span>
+          <span>осколки для кейсов</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Оставленные (ценные) предметы за всё время -->
+    <div class="farm-history-card">
+      <div class="farm-history-header">
+        <span>💠 Оставленные предметы</span>
+      </div>
+      <div id="caseKeptList" class="farm-history-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- История прогонов -->
+    <div class="recent-card">
+      <div class="recent-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>🕒 Последние прогоны</span>
+        <span id="caseRunStatus" class="kpi-badge">Простой</span>
+      </div>
+      <div id="caseRunsList" class="recent-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB 5: CHARACTER & INVENTORY ==================== -->
   <section id="tabCharacter" class="tab-pane">
     <!-- Profile Card -->
     <div class="char-profile-card">
@@ -1811,7 +1886,7 @@
     </div>
   </section>
 
-  <!-- ==================== TAB 3: SETTINGS ==================== -->
+  <!-- ==================== TAB 6: SETTINGS ==================== -->
   <section id="tabSettings" class="tab-pane">
     <div class="settings-card">
       <div class="settings-title">
@@ -1862,6 +1937,10 @@
     <div class="tab-item" onclick="switchTab('payday')">
       <div class="tab-icon">📊</div>
       <div class="tab-label">PayDay</div>
+    </div>
+    <div class="tab-item" onclick="switchTab('cases')">
+      <div class="tab-icon">🎁</div>
+      <div class="tab-label">Кейсы</div>
     </div>
     <div class="tab-item" onclick="switchTab('character')">
       <div class="tab-icon">👤</div>
@@ -1979,7 +2058,7 @@
       // Update nav items
       const tabItems = document.querySelectorAll('.tab-item');
       tabItems.forEach((item, idx) => {
-        const names = ['mining', 'farmStats', 'payday', 'character', 'settings'];
+        const names = ['mining', 'farmStats', 'payday', 'cases', 'character', 'settings'];
         if (names[idx] === tabName) {
           item.classList.add('active');
         } else {
@@ -1991,6 +2070,7 @@
       document.getElementById('tabMining').classList.toggle('active', tabName === 'mining');
       document.getElementById('tabFarmStats').classList.toggle('active', tabName === 'farmStats');
       document.getElementById('tabPayday').classList.toggle('active', tabName === 'payday');
+      document.getElementById('tabCases').classList.toggle('active', tabName === 'cases');
       document.getElementById('tabCharacter').classList.toggle('active', tabName === 'character');
       document.getElementById('tabSettings').classList.toggle('active', tabName === 'settings');
 
@@ -2386,6 +2466,61 @@
     }
 
     function processIncomingCloudData(rawData) {
+      // Кейсы (AutoNewCase): модуль отдаёт только факты — запись на каждый
+      // прогон в case_runs/<время>.json и снимок cases.json. Суммы и разбивку
+      // по предметам считаем здесь, как miningProfit из mining_runs.
+      const caseRunsMap = {};
+      ['case_runs', 'caseRuns', 'cases_runs'].forEach(nodeKey => {
+        const node = rawData[nodeKey];
+        if (!node || typeof node !== 'object') return;
+        Object.entries(node).forEach(([k, r]) => {
+          if (r && typeof r === 'object') {
+            const t = Number(r.time) || Number(k) || 0;
+            caseRunsMap[t > 0 ? String(t) : ('run_' + k)] = { ...r, time: t };
+          }
+        });
+      });
+      const caseRuns = Object.values(caseRunsMap).sort((a, b) => (b.time || 0) - (a.time || 0));
+      const caseTotals = { runs: 0, opened: 0, kept: 0, sold: 0, shards: 0, lastTimeStr: '', lastDateStr: '' };
+      const caseKeptMap = {};
+      caseRuns.forEach(r => {
+        caseTotals.runs += 1;
+        caseTotals.opened += Number(r.opened) || 0;
+        caseTotals.kept += Number(r.kept) || 0;
+        caseTotals.sold += Number(r.sold) || 0;
+        caseTotals.shards += Number(r.shards) || 0;
+
+        let items = r.keptItems;
+        if (items && !Array.isArray(items) && typeof items === 'object') items = Object.values(items);
+        if (!Array.isArray(items)) items = [];
+        items.forEach(it => {
+          if (!it) return;
+          const id = String(it.id !== undefined ? it.id : (it.name || ''));
+          if (!id) return;
+          if (!caseKeptMap[id]) {
+            caseKeptMap[id] = { id: it.id, name: it.name || ('ID ' + id), count: 0 };
+          }
+          caseKeptMap[id].count += Number(it.count) || 0;
+        });
+      });
+      if (caseRuns.length > 0) {
+        caseTotals.lastTimeStr = caseRuns[0].timeStr || '';
+        caseTotals.lastDateStr = caseRuns[0].dateStr || '';
+      }
+
+      const caseSnapshot = (rawData.cases && typeof rawData.cases === 'object') ? rawData.cases : {};
+      const cases = {
+        runs: caseRuns.slice(0, 60),
+        totals: caseTotals,
+        keptItems: Object.values(caseKeptMap).sort((a, b) => b.count - a.count),
+        state: {
+          running: caseSnapshot.running === true,
+          target: Number(caseSnapshot.target) || 0,
+          opened: Number(caseSnapshot.opened) || 0,
+          updatedAt: Number(caseSnapshot.updatedAt) || 0
+        }
+      };
+
       if (!rawData || typeof rawData !== 'object') return rawData;
 
       let mining = rawData.mining;
@@ -2515,7 +2650,8 @@
         return {
           ...rawData,
           mining: mining,
-          miningProfit: rawData.miningProfit || miningProfit
+          miningProfit: rawData.miningProfit || miningProfit,
+          cases: cases
         };
       }
 
@@ -2733,7 +2869,8 @@
         miningProfit: miningProfit,
         character: rawData.character || null,
         cmdToken: rawData.cmdToken || null,
-        progress: rawData.progress || null
+        progress: rawData.progress || null,
+        cases: cases
       };
     }
 
@@ -2985,6 +3122,72 @@
             }
           ]
         },
+        cases: {
+          running: false,
+          target: 0,
+          opened: 0,
+          updatedAt: Math.floor(Date.now() / 1000)
+        },
+        case_runs: {
+          '1759113000': {
+            time: 1759113000, timeStr: '18:30', dateStr: '2026-09-28',
+            target: 40, opened: 40, kept: 4, sold: 36, shards: 720, recoveries: 0,
+            ok: true, stopped: false, seconds: 512,
+            message: 'Готово. Открыто 40, оставлено 4, расколото 36 (+720 осколков).',
+            keptItems: [
+              { id: 10361, name: 'Дивидентный договор', count: 2 },
+              { id: 2149, name: 'Ларец Олигарха', count: 2 }
+            ]
+          },
+          '1759107000': {
+            time: 1759107000, timeStr: '16:50', dateStr: '2026-09-28',
+            target: 50, opened: 50, kept: 5, sold: 45, shards: 900, recoveries: 1,
+            ok: true, stopped: false, seconds: 703,
+            message: 'Готово. Открыто 50, оставлено 5, расколото 45 (+900 осколков). Восстановлений: 1.',
+            keptItems: [
+              { id: 10224, name: 'Автомобиль Impala SS', count: 1 },
+              { id: 10361, name: 'Дивидентный договор', count: 1 },
+              { id: 10258, name: 'Знамя Aztecas', count: 3 }
+            ]
+          },
+          '1759098600': {
+            time: 1759098600, timeStr: '11:50', dateStr: '2026-09-28',
+            target: 25, opened: 25, kept: 2, sold: 23, shards: 460, recoveries: 0,
+            ok: true, stopped: false, seconds: 318,
+            message: 'Готово. Открыто 25, оставлено 2, расколото 23 (+460 осколков).',
+            keptItems: [
+              { id: 10252, name: 'Case Capture', count: 1 },
+              { id: 1853, name: 'Ларец с премией', count: 1 }
+            ]
+          },
+          '1759086000': {
+            time: 1759086000, timeStr: '08:20', dateStr: '2026-09-28',
+            target: 30, opened: 12, kept: 1, sold: 11, shards: 220, recoveries: 0,
+            ok: false, stopped: false, seconds: 174,
+            message: 'Ошибка: Игрок вышел из окна кейсов.',
+            keptItems: [
+              { id: 2149, name: 'Ларец Олигарха', count: 1 }
+            ]
+          },
+          '1759078000': {
+            time: 1759078000, timeStr: '06:06', dateStr: '2026-09-28',
+            target: 20, opened: 8, kept: 1, sold: 7, shards: 140, recoveries: 0,
+            ok: true, stopped: true, seconds: 121,
+            message: 'Остановлено. Открыто 8 из 20.',
+            keptItems: [
+              { id: 9770, name: 'Монета контейнера', count: 1 }
+            ]
+          },
+          '1759064400': {
+            time: 1759064400, timeStr: '02:20', dateStr: '2026-09-28',
+            target: 15, opened: 15, kept: 1, sold: 14, shards: 280, recoveries: 0,
+            ok: true, stopped: false, seconds: 189,
+            message: 'Готово. Открыто 15, оставлено 1, расколоть 14 (+280 осколков).',
+            keptItems: [
+              { id: 10361, name: 'Дивидентный договор', count: 1 }
+            ]
+          }
+        },
         character: {
           player: {
             name: 'Nikes_Arizona',
@@ -3084,13 +3287,14 @@
     }
 
     /* ---- Порционная выдача списков: первые N записей, остаток — по кнопке ---- */
-    const LIST_PAGE = { farmHistory: 5, farmProfit: 5, recentPayday: 10 };
+    const LIST_PAGE = { farmHistory: 5, farmProfit: 5, recentPayday: 10, caseRuns: 5 };
     const listShown = {
       farmHistory: LIST_PAGE.farmHistory,
       farmProfit: LIST_PAGE.farmProfit,
-      recentPayday: LIST_PAGE.recentPayday
+      recentPayday: LIST_PAGE.recentPayday,
+      caseRuns: LIST_PAGE.caseRuns
     };
-    const listData = { farmHistory: [], farmProfit: [], recentPayday: [] };
+    const listData = { farmHistory: [], farmProfit: [], recentPayday: [], caseRuns: [] };
 
     // Кнопка догрузки; на последней странице возвращает пустую строку.
     function listMoreButton(key) {
@@ -3109,6 +3313,7 @@
       listShown[key] += LIST_PAGE[key];
       if (key === 'farmHistory') paintFarmHistory();
       else if (key === 'farmProfit') paintFarmProfit();
+      else if (key === 'caseRuns') paintCaseRuns();
       else paintRecentPaydays();
     }
 
@@ -3245,6 +3450,115 @@
       listContainer.innerHTML = html + listMoreButton('recentPayday');
     }
 
+    /* ---- Кейсы (AutoNewCase): прогоны и оставленные предметы ---- */
+    function renderCases(cases) {
+      const c = cases || {};
+      const totals = c.totals || {};
+      const st = c.state || {};
+
+      const openedEl = document.getElementById('caseTotalOpened');
+      if (!openedEl) return;
+
+      openedEl.textContent = (totals.opened || 0).toLocaleString('ru-RU');
+      document.getElementById('caseTotalKept').textContent = (totals.kept || 0).toLocaleString('ru-RU');
+      document.getElementById('caseTotalSold').textContent = (totals.sold || 0).toLocaleString('ru-RU');
+      document.getElementById('caseTotalShards').textContent = (totals.shards || 0).toLocaleString('ru-RU');
+      document.getElementById('caseRunsBadge').textContent = (totals.runs || 0) + ' прогонов';
+
+      const statusEl = document.getElementById('caseRunStatus');
+      if (statusEl) {
+        statusEl.textContent = st.running ? ('Идёт: цель ' + (st.target || 0)) : 'Простой';
+        statusEl.style.color = st.running ? '#fbbf24' : '';
+      }
+
+      const lastEl = document.getElementById('caseLastRun');
+      if (lastEl) {
+        lastEl.textContent = totals.runs > 0
+          ? ('Последний: ' + (totals.lastTimeStr || '--:--') + (totals.lastDateStr ? ' (' + totals.lastDateStr + ')' : ''))
+          : 'Прогонов ещё не было';
+      }
+
+      listData.caseRuns = c.runs || [];
+      paintCaseRuns();
+      paintCaseKept(c.keptItems || []);
+    }
+
+    function paintCaseRuns() {
+      const container = document.getElementById('caseRunsList');
+      if (!container) return;
+
+      const runs = listData.caseRuns;
+      if (runs.length === 0) {
+        container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">История появится после первого прогона /anc</div>';
+        return;
+      }
+
+      const shortName = (n) => {
+        const s = String(n || '');
+        return s.length > 22 ? (s.slice(0, 21) + '…') : s;
+      };
+
+      let html = '';
+      runs.slice(0, listShown.caseRuns).forEach(r => {
+        let kept = r.keptItems;
+        if (kept && !Array.isArray(kept) && typeof kept === 'object') kept = Object.values(kept);
+        if (!Array.isArray(kept)) kept = [];
+
+        const dur = Number(r.seconds) || 0;
+        const durText = dur >= 60 ? (Math.floor(dur / 60) + ' мин ' + (dur % 60) + ' с') : (dur > 0 ? dur + ' с' : '');
+        const bad = (r.ok === false);
+        const statusText = bad ? '⚠️ прервано' : (r.stopped ? '⏹ остановлено' : '✅ завершено');
+
+        html += `
+          <div class="recent-item">
+            <div class="recent-item-left">
+              <span class="recent-time">🕒 ${r.timeStr || '--:--'} МСК (${r.dateStr || ''}) • ${statusText}</span>
+              <div class="recent-pills">
+                <span class="recent-pill">🎁 открыто ${r.opened || 0} из ${r.target || 0}</span>
+                <span class="recent-pill">💠 оставлено ${r.kept || 0}</span>
+                <span class="recent-pill">🔨 расколото ${r.sold || 0}</span>
+                <span class="recent-pill">🪙 +${(Number(r.shards) || 0).toLocaleString('ru-RU')}</span>
+              </div>
+              ${kept.length ? `<div class="recent-pills">` + kept.map(it => `<span class="recent-pill">💠 ${shortName(it.name || ('ID ' + it.id))} ×${it.count || 0}</span>`).join('') + `</div>` : ''}
+            </div>
+            <div class="recent-item-right">
+              <div class="recent-amount" style="color:${bad ? '#fbbf24' : '#34d399'};">${r.opened || 0} кейсов</div>
+              <div class="recent-az" style="white-space: nowrap;">${durText}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html + listMoreButton('caseRuns');
+    }
+
+    function paintCaseKept(items) {
+      const container = document.getElementById('caseKeptList');
+      if (!container) return;
+
+      if (!items || items.length === 0) {
+        container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">Оставленных предметов пока нет</div>';
+        return;
+      }
+
+      let html = '';
+      items.forEach(it => {
+        html += `
+          <div class="farm-run-item">
+            <div class="farm-run-left">
+              <span style="font-size:12.5px; color:#fff; font-weight:600;">💠 ${it.name || ('ID ' + it.id)}</span>
+              <span class="farm-run-time">ID ${it.id || '—'}</span>
+            </div>
+            <div class="farm-run-right">
+              <span class="farm-run-btc" style="color:var(--cyan);">×${it.count || 0}</span>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
     function updateUI(data) {
       if (!data) return;
 
@@ -3328,6 +3642,9 @@
 
       // 5. Chart
       renderChart();
+
+      // 5.1 Cases tab (AutoNewCase)
+      if (data.cases) renderCases(data.cases);
 
       // 6. Character stats
       renderCharacterTab(data.character);

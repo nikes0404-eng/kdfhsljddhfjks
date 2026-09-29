@@ -1946,8 +1946,16 @@
     }
     .tab-pane.lg-out-left  { animation: lg-page-out-left 0.24s ease both; }
     .tab-pane.lg-out-right { animation: lg-page-out-right 0.24s ease both; }
-    .tab-pane.active.lg-in-left  { animation: lg-page-in-left 0.34s var(--lg-ease) both; }
-    .tab-pane.active.lg-in-right { animation: lg-page-in-right 0.34s var(--lg-ease) both; }
+    /* Направление въезда задаёт ПЕРЕМЕННАЯ, а сама анимация одна — базовый
+       подъём вкладки lg-rise. Раньше въезд был отдельной анимацией (.lg-in-*), и
+       снятие класса через 400 мс возвращало lg-rise: вкладка въезжала ВТОРОЙ раз
+       — это и читалось как «интерфейс дёргается через полсекунды». */
+    .tab-pane.active.lg-in-left  { --lg-from-x: -22%; }
+    .tab-pane.active.lg-in-right { --lg-from-x: 22%; }
+    @keyframes lg-rise {
+      from { opacity: 0; transform: translate3d(var(--lg-from-x, 0px), 10px, 0) scale(0.995); }
+      to   { opacity: 1; transform: none; }
+    }
     @keyframes lg-page-out-left {
       from { opacity: 1; transform: none; }
       to   { opacity: 0; transform: translate3d(-32%, 0, 0) scale(0.97); }
@@ -1955,14 +1963,6 @@
     @keyframes lg-page-out-right {
       from { opacity: 1; transform: none; }
       to   { opacity: 0; transform: translate3d(32%, 0, 0) scale(0.97); }
-    }
-    @keyframes lg-page-in-left {
-      from { opacity: 0; transform: translate3d(-22%, 0, 0) scale(0.985); }
-      to   { opacity: 1; transform: none; }
-    }
-    @keyframes lg-page-in-right {
-      from { opacity: 0; transform: translate3d(22%, 0, 0) scale(0.985); }
-      to   { opacity: 1; transform: none; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -1976,6 +1976,65 @@
       }
     }
     /* ==== /LIQUID GLASS: слайдер вкладок ==== */
+    /* ==== LIQUID GLASS: живость интерфейса ==== */
+    /* Карточки вкладки въезжают по очереди. Классы вешает скрипт слоя: он же
+       пропускает карточки со своей анимацией, чтобы каскад не погасил чужой
+       эффект. Заполнение только `backwards`: если бы анимация держала конечное
+       состояние, она перебила бы и пружину нажатия, и переходы трансформа. */
+    .lg-stagger {
+      animation: lg-card-in 0.5s var(--lg-ease) backwards;
+      animation-delay: var(--lg-step, 0ms);
+    }
+    .lg-reveal { animation: lg-card-in 0.45s var(--lg-ease) backwards; }
+    @keyframes lg-card-in {
+      from { opacity: 0; transform: translate3d(0, 16px, 0) scale(0.982); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* Полосы (прогресс сбора, EXP, структура PayDay) не прыгают, а едут. */
+    .progress-fill, .char-exp-fill, .bar-fill { transition: width 0.7s var(--lg-ease); }
+
+    /* Нажатие: пружина была и раньше, добавляем подсветку. */
+    .btn-main:active, .btn-action:active, .list-more-btn:active, .range-btn:active,
+    .lg-theme-opt:active { filter: brightness(1.12); }
+    /* Записи в списках ведут себя как кнопки. */
+    .farm-run-item:active, .recent-item:active, .cases-run:active { transform: scale(0.985); }
+
+    /* Живой фон отзывается на палец и наклон телефона. scale(1.04) — чтобы от
+       сдвига не оголился край слоя бликов. */
+    .lg-bg {
+      transform: translate3d(var(--lg-par-x, 0px), var(--lg-par-y, 0px), 0) scale(1.04);
+      transition: transform 0.5s ease-out;
+    }
+
+    /* По пилюле активной вкладки медленно пробегает блик — панель дышит. */
+    .lg-tab-indicator::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: linear-gradient(100deg, transparent 32%, rgba(255, 255, 255, 0.30) 50%, transparent 68%);
+      background-size: 260% 100%;
+      animation: lg-pill-sweep 5s ease-in-out infinite;
+    }
+    @keyframes lg-pill-sweep {
+      0%, 55% { background-position: 150% 0; }
+      100%    { background-position: -50% 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .lg-stagger, .lg-reveal { animation: none !important; }
+      .lg-bg { transform: none; transition: none; }
+      .lg-tab-indicator::after { animation: none; opacity: 0; }
+      .progress-fill, .char-exp-fill, .bar-fill { transition: none; }
+    }
+
+    /* Без стекла живой фон не читается — экономим кадры на слабых WebView. */
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .lg-bg { transform: none; transition: none; }
+    }
+    /* ==== /LIQUID GLASS: живость интерфейса ==== */
     /* ==== LIQUID GLASS: плавающая капсула таб-бара ==== */
     /* Панель вкладок — плавающая капсула. Слой стоит последним в <style>, а
        значит перекрывает и базовые правила, и слой Liquid Glass, и слой
@@ -5010,6 +5069,24 @@
           lgKiller = null;
         }, 400);
       }
+      // Класс `lg-in-*` задаёт только направление въезда — сама анимация одна на
+      // все переключения. Снимаем его, когда вкладка доехала (см. animationend в
+      // конце свайпа), и перестраховываемся перед каждым следующим переключением:
+      // класс не должен пережить смену вкладки и заставить следующую въехать сбоку.
+      function lgClearIncoming() {
+        var els = document.querySelectorAll('.tab-pane.lg-in-left, .tab-pane.lg-in-right');
+        for (var i = 0; i < els.length; i++) els[i].classList.remove('lg-in-left', 'lg-in-right');
+      }
+      // Тап по пункту: снимаем классы ДО switchTab (слушатель в фазе перехвата),
+      // чтобы вкладка, открытая пальцем, въехала обычным подъёмом.
+      nav.addEventListener('click', lgClearIncoming, true);
+
+      // Имя панели по имени вкладки: нужен сам элемент, чтобы повесить направление
+      // въезда ДО того, как switchTab сделает его активным.
+      var LG_PANE = {
+        mining: 'tabMining', farmStats: 'tabFarmStats', payday: 'tabPayday',
+        cases: 'tabCases', character: 'tabCharacter', settings: 'tabSettings'
+      };
       // Слой Liquid Glass при первой синхронизации (animate = false) оставлял
       // пилюле инлайновый transition: none — она прыгала вместо того, чтобы
       // ехать. Снимаем это состояние, иначе слайдер остаётся без анимации.
@@ -5033,8 +5110,36 @@
         lgDragEnd = null;
       }
 
+      // Пока пилюля едет за пальцем по горизонтали, страницу скроллить не даём:
+      // иначе браузер сам забирает жест (у панели touch-action: pan-y) и присылает
+      // pointercancel — пилюля замирала на случайной вкладке и «закусывала».
+      // Панель низкая и палец по ней идёт боком, так что вертикальный скролл
+      // именно на панели никому не нужен.
+      nav.addEventListener('touchmove', function (e) {
+        var d = lgDrag;
+        if (!d || e.touches.length !== 1) return;
+        var dx = e.touches[0].clientX - d.x;
+        var dy = e.touches[0].clientY - d.y;
+        if (d.moved < Math.abs(dx)) d.moved = Math.abs(dx);
+        if (d.moved < 5 || Math.abs(dx) < Math.abs(dy)) return;
+        if (e.cancelable) e.preventDefault();
+      }, { passive: false });
+
       nav.addEventListener('pointerdown', function (e) {
-        if (!lgMotionOK() || lgDrag) return;
+        if (!lgMotionOK()) return;
+        // Застрявший жест навсегда оставил бы lgDrag заполненным (палец ушёл за
+        // пределы окна, прилетело системное уведомление) — и панель перестала бы
+        // отвечать совсем. Такой жест сбрасываем и начинаем новый.
+        if (lgDrag) {
+          var stuck = lgMetrics();
+          var stuckIdx = lgIndexOf(activeTab);
+          lgStopDragListeners();
+          nav.classList.remove('lg-grabbing');
+          var sp = lgPuck();
+          if (sp) sp.style.transition = '';
+          if (stuck[stuckIdx]) lgSetPuck(stuck[stuckIdx].left, stuck[stuckIdx].width, true);
+          lgDrag = null;
+        }
         if (e.button) return;
         var m = lgMetrics();
         if (!m.length) return;
@@ -5086,10 +5191,29 @@
         document.addEventListener('pointercancel', lgDragEnd);
       });
 
+      // Палец может уйти из окна — отпускания не придёт, поэтому жест закрываем
+      // ещё и по потере фокуса окна и по уходу страницы в фон.
+      function lgAbortDrag() {
+        var d = lgDrag;
+        if (!d) return;
+        lgStopDragListeners();
+        lgFinishDrag(d, true);
+      }
+      window.addEventListener('blur', lgAbortDrag);
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) lgAbortDrag();
+      });
+
       function lgFinishDrag(d, cancelled) {
         lgDrag = null;
         nav.classList.remove('lg-grabbing');
-        if (!cancelled && d.moved < 5) return;   // это тап — пусть сработает onclick
+        if (d.moved < 5) {
+          // Это тап — пусть сработает onclick. Если же жест отменили снаружи
+          // (системный жест, потеря фокуса), класс вкладки не менялся, значит
+          // наблюдатель слоя не сработает — пилюлю возвращаем сами.
+          if (cancelled && d.m[d.idx]) lgSetPuck(d.m[d.idx].left, d.m[d.idx].width, true);
+          return;
+        }
         var p = lgPuck();
         if (!p) return;
         p.style.transition = '';
@@ -5215,13 +5339,22 @@
         setTimeout(function () { lgClearGhost(out); }, 300);
 
         lgHaptic();
+        // Порядок важен: направление въезда вешаем ДО switchTab — тогда вкладка
+        // въезжает сбоку той же анимацией lg-rise, что и обычно, и второй
+        // анимации (той, что и давала «дёрганье через полсекунды») больше нет.
+        lgClearIncoming();
+        var fresh = document.getElementById(LG_PANE[TABS[target]]);
+        if (fresh) fresh.classList.add(dir > 0 ? 'lg-in-left' : 'lg-in-right');
         switchTab(TABS[target]);
-
-        var fresh = document.querySelector('.tab-pane.active');
         if (fresh) {
-          var cls = dir > 0 ? 'lg-in-left' : 'lg-in-right';
-          fresh.classList.add(cls);
-          setTimeout(function () { fresh.classList.remove(cls); }, 400);
+          // Класс снимаем ровно на конце анимации: раньше это делал таймер на
+          // 400 мс, и он попадал в середину анимации — от этого сдвиг менялся
+          // на ходу. Обрабатываем только свою анимацию (у уходящей страницы своя).
+          fresh.addEventListener('animationend', function onRise(ev) {
+            if (ev.animationName !== 'lg-rise') return;
+            fresh.removeEventListener('animationend', onRise);
+            fresh.classList.remove('lg-in-left', 'lg-in-right');
+          });
         }
       }
       document.addEventListener('touchend', lgEndSwipe);
@@ -5234,6 +5367,207 @@
       }
     })();
     /* ==== /LIQUID GLASS: слайдер вкладок (скрипт) ==== */
+    /* ==== LIQUID GLASS: живость интерфейса (скрипт) ==== */
+    (function () {
+      var root = document.documentElement;
+      var nav = document.querySelector('.tab-nav');
+      var panes = document.querySelectorAll('.tab-pane');
+      if (!panes.length) return;
+
+      function lgReduced() {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      }
+      // CSS слой гасит и сам, но при reduced-motion честнее не запускать скрипт.
+      if (lgReduced()) return;
+
+      /* ---------- 1. Ступенчатое появление карточек вкладки ---------- */
+      var lgIO = null;
+      function lgOnEnter(entries) {
+        for (var i = 0; i < entries.length; i++) {
+          var el = entries[i].target;
+          if (!entries[i].isIntersecting) continue;
+          if (el.classList.contains('lg-stagger') || el.classList.contains('lg-reveal')) continue;
+          el.classList.add('lg-reveal');
+        }
+      }
+      function lgObserve(el) {
+        if (typeof IntersectionObserver !== 'function') return;
+        if (!lgIO) lgIO = new IntersectionObserver(lgOnEnter, { rootMargin: '0px 0px -6% 0px' });
+        lgIO.observe(el);
+      }
+      function lgVisible(el) {
+        var r = el.getBoundingClientRect();
+        return r.height > 0 && r.top < (window.innerHeight || 800);
+      }
+      // Карточку с собственной анимацией не трогаем: наш animation перебил бы её
+      // каскадом. Проверяем именно computed-анимацию, а не список классов, — так
+      // правило работает и для будущих эффектов.
+      function lgForeignAnimation(el) {
+        if (el.classList.contains('lg-stagger') || el.classList.contains('lg-reveal')) return false;
+        var a = getComputedStyle(el).animationName;
+        return !!(a && a !== 'none');
+      }
+      // Перезапуск: инлайновый `none` и обратно — тот же animation-name, но новая
+      // анимация. Один reflow на весь набор, иначе браузер склеит кадры.
+      function lgReplay(pane) {
+        var kids = pane.children, n = 0, i;
+        for (i = 0; i < kids.length; i++) {
+          if (!kids[i].classList || !kids[i].classList.contains('lg-stagger')) continue;
+          kids[i].style.animation = 'none';
+          n++;
+        }
+        if (!n) return;
+        void pane.offsetWidth;
+        for (i = 0; i < kids.length; i++) {
+          if (kids[i].classList && kids[i].classList.contains('lg-stagger')) kids[i].style.animation = '';
+        }
+      }
+      function lgMotion(restart) {
+        var active = document.querySelector('.tab-pane.active');
+        for (var p = 0; p < panes.length; p++) {
+          var kids = panes[p].children;
+          for (var i = 0; i < kids.length; i++) {
+            var el = kids[i];
+            if (el.nodeType !== 1 || el.classList.contains('lg-no-motion')) continue;
+            if (panes[p] !== active || !lgVisible(el)) {
+              // Карточка ниже экрана: она появится сама, когда до неё долистают.
+              if (!el.classList.contains('lg-stagger') && !el.classList.contains('lg-reveal')) lgObserve(el);
+              continue;
+            }
+            if (el.classList.contains('lg-stagger') || lgForeignAnimation(el)) continue;
+            el.style.setProperty('--lg-step', (Math.min(i, 7) * 45) + 'ms');
+            el.classList.add('lg-stagger');
+            el.classList.remove('lg-reveal');
+          }
+        }
+        if (restart && active) lgReplay(active);
+      }
+
+      /* ---------- 2. Числа набегают, а не перескакивают ---------- */
+      // Только элементы, текст которых меняется НА МЕСТЕ (textContent), и только
+      // не те, что «тикает» слой Liquid Glass (`.val`) — иначе два эффекта спорили
+      // бы друг с другом. Формат исходника сохраняется: префикс (`$`, `+$`),
+      // разряды (пробел/узкий пробел), дроби (`.1` в `$23.1M`) и суффикс (`M`, ` BTC`, `%`).
+      var LG_COUNT = '.kpi-value, .char-fin-val, .char-btc-val, .char-inv-val, .char-vc-val, ' +
+                     '.farm-run-btc, .farm-run-asc, .recent-amount, .recent-az, .cases-stat b';
+      var lgPrev = new WeakMap();
+
+      function lgParse(text) {
+        var m = /^([^0-9]*?)(-?)(\d[\d\s\u00a0\u202f]*)([.,]\d+)?([^0-9]*)$/.exec(text);
+        if (!m) return null;
+        var groups = m[3].replace(/\d/g, '');
+        var ints = m[3].replace(/[\s\u00a0\u202f]/g, '');
+        if (!/^\d+$/.test(ints)) return null;
+        var frac = m[4] ? m[4].slice(1) : '';
+        if (frac.length > 3) return null;
+        var value = parseFloat(ints + '.' + (frac || '0'));
+        if (!isFinite(value)) return null;
+        return {
+          pre: m[1], neg: m[2] === '-', val: value, frac: frac.length, suf: m[5],
+          sep: groups.length ? groups.charAt(0) : '', dec: m[4] ? m[4].charAt(0) : '.', raw: text
+        };
+      }
+      function lgFormat(p, v) {
+        var parts = v.toFixed(p.frac).split('.');
+        if (p.sep) {
+          for (var i = parts[0].length - 3; i > 0; i -= 3) {
+            parts[0] = parts[0].slice(0, i) + p.sep + parts[0].slice(i);
+          }
+        }
+        return p.pre + (p.neg ? '-' : '') + parts[0] + (parts[1] ? p.dec + parts[1] : '') + p.suf;
+      }
+      function lgSameShape(a, b) {
+        return a.pre === b.pre && a.suf === b.suf && a.frac === b.frac &&
+               a.sep === b.sep && a.dec === b.dec && a.neg === b.neg;
+      }
+      function lgCount(el, from, to, p) {
+        var t0 = performance.now(), dur = 620;
+        el.dataset.lgCounting = '1';
+        function step(now) {
+          var t = Math.min(1, (now - t0) / dur);
+          var e = 1 - Math.pow(1 - t, 3);        // мягкое торможение
+          if (t < 1) {
+            el.textContent = lgFormat(p, from + (to - from) * e);
+            requestAnimationFrame(step);
+            return;
+          }
+          el.textContent = p.raw;
+          lgPrev.set(el, p.raw);                 // свои же правки не считаем изменением
+          delete el.dataset.lgCounting;
+        }
+        requestAnimationFrame(step);
+      }
+      function lgCountMutations(muts) {
+        for (var i = 0; i < muts.length; i++) {
+          var m = muts[i];
+          var el = m.type === 'characterData' ? m.target.parentElement : m.target;
+          if (!el || el.nodeType !== 1 || !el.classList || !el.matches) continue;
+          if (!el.matches(LG_COUNT)) continue;
+          if (el.dataset.lgCounting || el.offsetParent === null) continue;
+          var now = (el.textContent || '').trim();
+          var prev = lgPrev.get(el);
+          lgPrev.set(el, now);
+          if (prev === undefined || prev === now) continue;
+          var was = lgParse(prev);
+          var next = lgParse(now);
+          if (!was || !next || !lgSameShape(was, next)) continue;
+          if (Math.abs(was.val - next.val) < 1e-9) continue;
+          lgCount(el, was.val, next.val, next);
+        }
+      }
+      function lgSeedCounters() {
+        var els = document.querySelectorAll(LG_COUNT);
+        for (var i = 0; i < els.length; i++) lgPrev.set(els[i], (els[i].textContent || '').trim());
+      }
+
+      /* ---------- 3. Живой фон отзывается на палец и наклон ---------- */
+      function lgParallax() {
+        var x = 0, y = 0, raf = 0;
+        function apply() {
+          raf = 0;
+          root.style.setProperty('--lg-par-x', x.toFixed(1) + 'px');
+          root.style.setProperty('--lg-par-y', y.toFixed(1) + 'px');
+        }
+        function set(nx, ny) {
+          x = nx;
+          y = ny;
+          if (!raf) raf = requestAnimationFrame(apply);
+        }
+        window.addEventListener('deviceorientation', function (e) {
+          if (e.gamma == null || e.beta == null) return;
+          set(Math.max(-9, Math.min(9, e.gamma / 5)), Math.max(-9, Math.min(9, (e.beta - 45) / 7)));
+        }, { passive: true });
+        window.addEventListener('pointermove', function (e) {
+          var w = window.innerWidth || 360, h = window.innerHeight || 700;
+          set((e.clientX / w - 0.5) * 14, (e.clientY / h - 0.5) * 14);
+        }, { passive: true });
+      }
+
+      /* ---------- 4. Запуск ---------- */
+      // Вкладка может смениться и кликом, и свайпом, и BackButton Telegram —
+      // поэтому следим за классом пункта, а не за конкретным жестом.
+      function lgWatchTabs() {
+        if (!nav || typeof MutationObserver !== 'function') return;
+        new MutationObserver(function () {
+          requestAnimationFrame(function () { lgMotion(true); });
+        }).observe(nav, { attributes: true, attributeFilter: ['class'], subtree: true });
+      }
+      function lgWatchCounters() {
+        if (typeof MutationObserver !== 'function') return;
+        for (var p = 0; p < panes.length; p++) {
+          new MutationObserver(lgCountMutations)
+            .observe(panes[p], { characterData: true, childList: true, subtree: true });
+        }
+      }
+
+      lgMotion(false);
+      lgSeedCounters();
+      lgWatchTabs();
+      lgWatchCounters();
+      lgParallax();
+      window.addEventListener('resize', function () { lgMotion(false); });
+    })();
+    /* ==== /LIQUID GLASS: живость интерфейса (скрипт) ==== */
     /* ==== LIQUID GLASS: плавающая капсула таб-бара (скрипт) ==== */
     (function () {
       var nav = document.querySelector('.tab-nav');

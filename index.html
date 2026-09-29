@@ -4,6 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MiningNextGen Companion</title>
+<!-- ==== LIQUID GLASS: тема до отрисовки ==== -->
+  <script>
+    // Тема ставится до первой отрисовки, иначе сохранённая светлая мигает тёмным.
+    (function () {
+      try {
+        var t = localStorage.getItem('mng_theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+<!-- ==== /LIQUID GLASS: тема до отрисовки ==== -->
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
@@ -1504,9 +1515,478 @@
       font-weight: 600;
       cursor: pointer;
     }
+    /* ==== LIQUID GLASS: слой оформления ==== */
+    /* Слой последний в <style>: перекрывает базовые правила каскадом, поэтому
+       сами базовые правила не меняются — откат делается удалением слоя. */
+    :root {
+      --glass-bg: rgba(26, 28, 44, 0.52);
+      --glass-bg-solid: rgba(22, 24, 38, 0.95);
+      --glass-border: rgba(255, 255, 255, 0.13);
+      --glass-rim: rgba(255, 255, 255, 0.22);
+      --glass-sheen: rgba(255, 255, 255, 0.11);
+      --glass-tint: rgba(157, 140, 255, 0.10);
+      --glass-row: rgba(255, 255, 255, 0.05);
+      --glass-row-border: rgba(255, 255, 255, 0.07);
+      --glass-shadow: 0 18px 38px rgba(0, 0, 0, 0.40);
+      --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+      --lg-blob-1: rgba(139, 92, 246, 0.88);
+      --lg-blob-2: rgba(6, 182, 212, 0.70);
+      --lg-blob-3: rgba(236, 72, 153, 0.62);
+      --lg-ambient-1: rgba(157, 140, 255, 0.18);
+      --lg-ambient-2: rgba(6, 182, 212, 0.13);
+      --lg-blur: 22px;
+      --lg-saturate: 170%;
+      --lg-ease: cubic-bezier(0.22, 1.25, 0.36, 1);
+    }
+
+    [data-theme="light"] {
+      --bg-color: #eceffa;
+      --text-main: #161826;
+      --text-muted: #5a6072;
+      --card-bg: rgba(255, 255, 255, 0.62);
+      --card-border: rgba(110, 96, 200, 0.20);
+      --accent: #6f5ce6;
+      --accent-glow: rgba(111, 92, 230, 0.30);
+      --glass-bg: rgba(255, 255, 255, 0.58);
+      --glass-bg-solid: rgba(255, 255, 255, 0.92);
+      --glass-border: rgba(255, 255, 255, 0.85);
+      --glass-rim: rgba(255, 255, 255, 0.95);
+      --glass-sheen: rgba(255, 255, 255, 0.50);
+      --glass-tint: rgba(111, 92, 230, 0.07);
+      --glass-row: rgba(255, 255, 255, 0.55);
+      --glass-row-border: rgba(255, 255, 255, 0.85);
+      --glass-shadow: 0 16px 34px rgba(31, 38, 66, 0.14);
+      --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+      --lg-blob-1: rgba(139, 92, 246, 0.55);
+      --lg-blob-2: rgba(56, 189, 248, 0.50);
+      --lg-blob-3: rgba(244, 114, 182, 0.42);
+      --lg-ambient-1: rgba(157, 140, 255, 0.22);
+      --lg-ambient-2: rgba(56, 189, 248, 0.16);
+    }
+
+    /* Подложку рисует html, живые блики — отдельный слой .lg-bg.
+       Амбиентный градиент на html нужен, чтобы картам было что размывать:
+       стекло читается только когда за ним видна живая подложка. */
+    html {
+      background:
+        radial-gradient(120% 90% at 12% 0%, var(--lg-ambient-1), transparent 60%),
+        radial-gradient(100% 80% at 88% 100%, var(--lg-ambient-2), transparent 60%),
+        var(--bg-color);
+    }
+    body { background: none; background-image: none; }
+
+    .lg-bg {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+      pointer-events: none;
+      contain: layout paint;
+    }
+    .lg-blob {
+      position: absolute;
+      display: block;
+      border-radius: 50%;
+      filter: blur(46px);
+      opacity: 0.85;
+      will-change: transform;
+    }
+    .lg-blob-a {
+      width: 74vw; height: 74vw; left: -24vw; top: -18vw;
+      background: radial-gradient(circle at 40% 40%, var(--lg-blob-1), transparent 70%);
+      animation: lg-drift-a 32s ease-in-out infinite;
+    }
+    .lg-blob-b {
+      width: 62vw; height: 62vw; right: -22vw; top: 20vh;
+      background: radial-gradient(circle at 50% 50%, var(--lg-blob-2), transparent 70%);
+      animation: lg-drift-b 41s ease-in-out infinite;
+    }
+    .lg-blob-c {
+      width: 72vw; height: 72vw; left: 6vw; bottom: -28vh;
+      background: radial-gradient(circle at 50% 50%, var(--lg-blob-3), transparent 72%);
+      animation: lg-drift-c 52s ease-in-out infinite;
+    }
+    @keyframes lg-drift-a {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+      50% { transform: translate3d(7vw, 5vh, 0) scale(1.14); }
+    }
+    @keyframes lg-drift-b {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1.06); }
+      50% { transform: translate3d(-8vw, -7vh, 0) scale(0.94); }
+    }
+    @keyframes lg-drift-c {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(0.98); }
+      50% { transform: translate3d(6vw, -6vh, 0) scale(1.12); }
+    }
+    .lg-grain {
+      position: absolute;
+      inset: 0;
+      opacity: 0.035;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.9) 1px, transparent 1px);
+      background-size: 3px 3px;
+    }
+
+    /* Стеклянные поверхности: нейтральные карточки (те, что используют
+       --card-bg). Семантически окрашенные блоки стеклим отдельно, не трогая
+       их цвет — иначе пропали бы красный/зелёный/янтарный смысл. */
+    .kpi-card, .chart-card, .recent-card, .farm-history-card, .telemetry-card,
+    .coolant-card, .cases-card, .settings-card, .breakdown-card,
+    .char-info-card, .char-fin-card {
+      background:
+        linear-gradient(158deg, var(--glass-sheen) 0%, rgba(255, 255, 255, 0) 46%),
+        var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow), var(--glass-inset);
+      backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
+      -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
+    }
+
+    /* Блоки со своим смысловым цветом: добавляем только размытие и кромку */
+    .progress-card, .char-profile-card, .coolant-issue-card, .coolant-ok-banner,
+    .coolant-alert-box, .banner, .toast, .modal-box {
+      backdrop-filter: blur(calc(var(--lg-blur) - 6px)) saturate(var(--lg-saturate));
+      -webkit-backdrop-filter: blur(calc(var(--lg-blur) - 6px)) saturate(var(--lg-saturate));
+      box-shadow: var(--glass-shadow), var(--glass-inset);
+    }
+
+    /* Внутренние строки и пилюли: тот же материал, на шаг глубже */
+    .telemetry-stat, .recent-item, .farm-run-item, .cases-run, .cases-stat,
+    .breakdown-item, .char-inv-item, .char-row, .farm-pill, .recent-pill {
+      background: var(--glass-row);
+      border-color: var(--glass-row-border);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    /* Таб-бар: стекло + скользящая пилюля вместо старой точки-индикатора */
+    .tab-nav {
+      background:
+        linear-gradient(180deg, var(--glass-sheen) 0%, rgba(255, 255, 255, 0) 55%),
+        var(--glass-bg-solid);
+      border-top: 1px solid var(--glass-border);
+      box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.42), var(--glass-inset);
+      backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
+      -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-saturate));
+    }
+    .tab-item {
+      transition: color 0.25s ease, transform 0.3s var(--lg-ease);
+      z-index: 1;
+    }
+    .tab-item.active::before { display: none; }
+    .tab-item:active { transform: scale(0.93); }
+    .tab-item.active .tab-icon {
+      animation: lg-bob 0.45s var(--lg-ease);
+    }
+    .lg-tab-indicator {
+      position: absolute;
+      top: 6px;
+      bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+      left: 0;
+      pointer-events: none;
+      border-radius: 14px;
+      background:
+        radial-gradient(120% 120% at 50% 0%, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.03) 62%),
+        var(--glass-tint);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 10px 22px rgba(0, 0, 0, 0.34);
+      transition: transform 0.42s var(--lg-ease), width 0.42s var(--lg-ease);
+    }
+    @keyframes lg-bob {
+      0% { transform: translateY(3px) scale(0.86); }
+      60% { transform: translateY(-2px) scale(1.06); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    /* Появление вкладки: короткий мягкий подъём */
+    .tab-pane.active { animation: lg-rise 0.42s var(--lg-ease) both; }
+    @keyframes lg-rise {
+      from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.995); }
+      to { opacity: 1; transform: none; }
+    }
+
+    /* Пружинный отклик на нажатие */
+    button, .modal-btn, .list-more-btn, .range-btn, .lg-theme-opt {
+      transition: transform 0.28s var(--lg-ease), box-shadow 0.28s ease, background 0.25s ease, color 0.25s ease;
+    }
+    button:active, .modal-btn:active, .list-more-btn:active, .range-btn:active, .lg-theme-opt:active {
+      transform: scale(0.97);
+    }
+
+    /* Живые индикаторы: дыхание статуса и мягкая пульсация проблем охлаждения */
+    .status-dot, .cases-status.live { animation: lg-breathe 3.4s ease-in-out infinite; }
+    @keyframes lg-breathe {
+      0%, 100% { opacity: 0.72; }
+      50% { opacity: 1; }
+    }
+    .coolant-issue-card { animation: lg-alert 3.6s ease-in-out infinite; }
+    @keyframes lg-alert {
+      0%, 100% { box-shadow: var(--glass-inset), 0 0 0 rgba(245, 158, 11, 0); }
+      50% { box-shadow: var(--glass-inset), 0 0 22px rgba(245, 158, 11, 0.22); }
+    }
+
+    /* Полосы прогресса: блик, бегущий по заливке */
+    .progress-fill, .char-exp-fill { position: relative; overflow: hidden; }
+    .progress-fill::after, .char-exp-fill::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(100deg, transparent 18%, rgba(255, 255, 255, 0.38) 50%, transparent 82%);
+      transform: translateX(-120%);
+      animation: lg-shine 3.4s ease-in-out infinite;
+    }
+    @keyframes lg-shine {
+      0% { transform: translateX(-120%); }
+      55%, 100% { transform: translateX(120%); }
+    }
+
+    /* «Тик» числа при изменении значения (ставит скрипт) */
+    .lg-tick { animation: lg-tick 0.6s var(--lg-ease); }
+    @keyframes lg-tick {
+      from { transform: translateY(6px) scale(0.94); opacity: 0.35; }
+      to { transform: none; opacity: 1; }
+    }
+
+    /* Модалки и тосты въезжают мягко */
+    .modal-box, #toast { animation: lg-pop 0.4s var(--lg-ease) both; }
+    @keyframes lg-pop {
+      from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.97); }
+      to { opacity: 1; transform: none; }
+    }
+
+    /* Переключатель темы в «Настройках» */
+    .lg-theme-switch { display: flex; gap: 8px; }
+    .lg-theme-opt {
+      flex: 1;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      color: var(--text-muted);
+      background: var(--glass-row);
+      border: 1px solid var(--glass-row-border);
+    }
+    .lg-theme-opt.active {
+      color: var(--text-main);
+      background:
+        linear-gradient(150deg, var(--glass-sheen), rgba(255, 255, 255, 0) 60%),
+        var(--glass-tint);
+      border-color: var(--glass-border);
+      box-shadow: var(--glass-inset);
+    }
+
+    /* ---- Светлая тема: перекраска текста ----
+       Базовый слой MiniApp красит часть подписей жёстко белым (там не
+       используется --text-main), поэтому на светлом стекле они исчезают.
+       Ниже перечислены ровно те селекторы, что были белыми в базовом слое.
+       Кнопки на цветном градиенте (.btn-main, .btn-action, .modal-btn, нажатие
+       «Показать ещё») и подсказка графика остаются белыми — их подложка тёмная
+       и в светлой теме. */
+    [data-theme="light"] .char-name,
+    [data-theme="light"] .char-fin-val,
+    [data-theme="light"] .char-info-title,
+    [data-theme="light"] .char-row-val,
+    [data-theme="light"] .char-inv-val,
+    [data-theme="light"] .coolant-title,
+    [data-theme="light"] .coolant-house,
+    [data-theme="light"] .coolant-issue-details b,
+    [data-theme="light"] .farm-history-header,
+    [data-theme="light"] .kpi-value,
+    [data-theme="light"] .chart-title h3,
+    [data-theme="light"] .breakdown-title,
+    [data-theme="light"] .breakdown-item-val,
+    [data-theme="light"] .recent-header,
+    [data-theme="light"] .cases-title,
+    [data-theme="light"] .cases-stat b,
+    [data-theme="light"] .settings-title {
+      color: var(--text-main);
+    }
+    /* Приглушённый серый из тёмной темы на светлом фоне нечитаем */
+    [data-theme="light"] .recent-pills,
+    [data-theme="light"] .cases-run,
+    [data-theme="light"] .cases-chip,
+    [data-theme="light"] .farm-pill,
+    [data-theme="light"] .modal-box p {
+      color: var(--text-muted);
+    }
+    /* Цветные значения телеметрии и бейджи сохраняют свой цвет */
+    [data-theme="light"] .telemetry-stat .val:not(.gold):not(.cyan) {
+      color: var(--text-main);
+    }
+    [data-theme="light"] .recent-item, [data-theme="light"] .farm-run-item,
+    [data-theme="light"] .cases-run, [data-theme="light"] .cases-stat,
+    [data-theme="light"] .breakdown-item, [data-theme="light"] .char-inv-item,
+    [data-theme="light"] .telemetry-stat {
+      color: var(--text-main);
+    }
+    /* Поля ввода: тёмное поле с белым текстом на светлом стекле чужеродно */
+    [data-theme="light"] .input-field {
+      background: rgba(255, 255, 255, 0.72);
+      border-color: rgba(110, 96, 200, 0.25);
+      color: var(--text-main);
+    }
+    /* Семантические плашки остаются цветными, но фон светлеет под стекло */
+    [data-theme="light"] .coolant-issue-card { background: rgba(255, 255, 255, 0.66); }
+    [data-theme="light"] .coolant-ok-banner { background: rgba(16, 185, 129, 0.12); }
+    [data-theme="light"] .coolant-alert-box { background: rgba(239, 68, 68, 0.12); }
+    /* Смысловые цвета: те же значения, но читаемые на светлом */
+    [data-theme="light"] .banner-preview { color: #92400e; }
+    [data-theme="light"] .banner-warning { color: #b91c1c; }
+    [data-theme="light"] .coolant-alert-box,
+    [data-theme="light"] .coolant-badge.danger,
+    [data-theme="light"] .progress-stop,
+    [data-theme="light"] .modal-box h3 { color: #b91c1c; }
+    [data-theme="light"] .coolant-badge.warn { color: #b45309; }
+    [data-theme="light"] .task-ack { color: #047857; }
+    /* Логотип залит белым градиентом по тексту — на светлом он исчезает */
+    [data-theme="light"] .brand-text h1 {
+      background: linear-gradient(180deg, #262b45 25%, #6f5ce6 100%);
+      -webkit-background-clip: text;
+    }
+    /* Плашки статуса и бейджи персонажа: пастель рассчитана на тёмный фон */
+    [data-theme="light"] .status-badge { color: #047857; }
+    [data-theme="light"] .status-badge.demo { color: #b45309; }
+    [data-theme="light"] .status-badge.offline { color: #b91c1c; }
+    [data-theme="light"] .char-badge.lvl { color: #6d5ce0; }
+    [data-theme="light"] .char-badge.phone { color: #2563eb; }
+    [data-theme="light"] .char-badge.online { color: #047857; }
+    [data-theme="light"] .char-badge.vip,
+    [data-theme="light"] .char-badge.warn { color: #b45309; }
+    [data-theme="light"] .char-badge.danger { color: #b91c1c; }
+    [data-theme="light"] .kpi-badge { color: #6d5ce0; }
+    [data-theme="light"] .kpi-badge.cyan { color: #0e7490; }
+    [data-theme="light"] .kpi-badge.gold { color: #b45309; }
+    [data-theme="light"] .cases-chip b { color: #0e7490; }
+    [data-theme="light"] .cases-run .nums .shards { color: #b45309; }
+    [data-theme="light"] .char-vc-tag,
+    [data-theme="light"] .char-vc-val { color: #7c3aed; }
+    [data-theme="light"] .char-btc-val { color: #b45309; }
+    /* Страховка от белого текста во встроенных стилях: шаблоны списков пишут
+       color: #fff прямо в разметке, и обычным правилом это не перебить. */
+    [data-theme="light"] [style*="color: #fff"],
+    [data-theme="light"] [style*="color:#fff"],
+    [data-theme="light"] [style*="color: #ffffff"] {
+      color: var(--text-main) !important;
+    }
+
+    /* Уважение к системной настройке «меньше движения» */
+    @media (prefers-reduced-motion: reduce) {
+      .lg-blob, .tab-item.active .tab-icon, .tab-pane.active, .progress-fill::after,
+      .char-exp-fill::after, .lg-tick, .modal-box, #toast, .status-dot,
+      .cases-status.live, .coolant-issue-card {
+        animation: none !important;
+      }
+      .lg-tab-indicator { transition: none !important; }
+      button, .tab-item, .lg-theme-opt { transition: none !important; }
+    }
+
+    /* Без поддержки backdrop-filter стекло становится плотной подложкой,
+       иначе текст читался бы поверх пёстрого фона */
+    @supports not ((backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px))) {
+      .lg-blob { display: none; }
+      .kpi-card, .chart-card, .recent-card, .farm-history-card, .telemetry-card,
+      .coolant-card, .cases-card, .settings-card, .breakdown-card,
+      .char-info-card, .char-fin-card {
+        background: var(--glass-bg-solid);
+      }
+      .tab-nav { background: var(--glass-bg-solid); }
+    }
+    /* ==== /LIQUID GLASS: слой оформления ==== */
+    /* ==== LIQUID GLASS: слайдер вкладок ==== */
+
+    /* Панель вкладок — настоящий слайдер. Слой ставится после слоя Liquid Glass,
+       поэтому перекрывает его правила, а базовые правила не правятся. */
+    .tab-nav {
+      /* Вертикальный скролл страницы не перехватываем: жест уходит браузеру и
+         приходит нам как pointercancel, а горизонталь остаётся слайдеру. */
+      touch-action: pan-y;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-item {
+      /* Пока палец на панели, пункты не должны «прыгать» своим нажатием. */
+      transition: color 0.25s ease, opacity 0.25s ease, transform 0.32s var(--lg-ease);
+    }
+    .tab-nav.lg-grabbing .tab-item { transition: color 0.16s ease, opacity 0.16s ease; }
+    .tab-nav.lg-grabbing .tab-item:active { transform: none; }
+
+    /* Пилюля. Инлайновый transition отсюда не ставим: его гасит скрипт жеста,
+       а возвращает обратно на отпускании — так пилюля идёт за пальцем без
+       инерции, но пружинит к пункту, когда палец ушёл. */
+    .lg-tab-indicator {
+      will-change: transform, width;
+      transition:
+        transform 0.44s var(--lg-ease),
+        width 0.44s var(--lg-ease),
+        box-shadow 0.3s ease,
+        opacity 0.25s ease;
+    }
+    /* Пилюля «взята» пальцем: чуть плотнее и с более глубокой тенью. */
+    .tab-nav.lg-grabbing .lg-tab-indicator {
+      opacity: 0.97;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.44), 0 18px 34px rgba(0, 0, 0, 0.46);
+    }
+    .tab-nav.lg-grabbing { cursor: grabbing; }
+
+    /* Страница, которую тянут пальцем: едет за ним и мягко гаснет. */
+    .tab-pane.lg-dragging {
+      animation: none !important;
+      transition: none !important;
+      will-change: transform, opacity;
+      transform-origin: 50% 0%;
+    }
+    /* Уходящая страница на время анимации вынимается из потока, чтобы новая
+       заняла её место сразу: position/top/left/width/height ставит скрипт,
+       здесь только возврат в отображение и сама анимация ухода. */
+    .tab-pane.lg-out-left,
+    .tab-pane.lg-out-right {
+      display: flex !important;
+      pointer-events: none;
+      z-index: 40;
+    }
+    .tab-pane.lg-out-left  { animation: lg-page-out-left 0.24s ease both; }
+    .tab-pane.lg-out-right { animation: lg-page-out-right 0.24s ease both; }
+    .tab-pane.active.lg-in-left  { animation: lg-page-in-left 0.34s var(--lg-ease) both; }
+    .tab-pane.active.lg-in-right { animation: lg-page-in-right 0.34s var(--lg-ease) both; }
+    @keyframes lg-page-out-left {
+      from { opacity: 1; transform: none; }
+      to   { opacity: 0; transform: translate3d(-32%, 0, 0) scale(0.97); }
+    }
+    @keyframes lg-page-out-right {
+      from { opacity: 1; transform: none; }
+      to   { opacity: 0; transform: translate3d(32%, 0, 0) scale(0.97); }
+    }
+    @keyframes lg-page-in-left {
+      from { opacity: 0; transform: translate3d(-22%, 0, 0) scale(0.985); }
+      to   { opacity: 1; transform: none; }
+    }
+    @keyframes lg-page-in-right {
+      from { opacity: 0; transform: translate3d(22%, 0, 0) scale(0.985); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tab-nav.lg-grabbing .lg-tab-indicator { transition: none; }
+      .tab-pane.lg-dragging { transform: none !important; opacity: 1 !important; }
+      .tab-pane.lg-out-left, .tab-pane.lg-out-right,
+      .tab-pane.active.lg-in-left, .tab-pane.active.lg-in-right {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+      }
+    }
+    /* ==== /LIQUID GLASS: слайдер вкладок ==== */
   </style>
 </head>
 <body>
+<!-- ==== LIQUID GLASS: живой фон ==== -->
+  <div class="lg-bg" aria-hidden="true">
+    <span class="lg-blob lg-blob-a"></span>
+    <span class="lg-blob lg-blob-b"></span>
+    <span class="lg-blob lg-blob-c"></span>
+    <span class="lg-grain"></span>
+  </div>
+<!-- ==== /LIQUID GLASS: живой фон ==== -->
 
   <!-- Notices -->
   <div id="previewNotice" class="banner banner-preview">
@@ -1981,6 +2461,20 @@
 
   <!-- ==================== TAB 6: SETTINGS ==================== -->
   <section id="tabSettings" class="tab-pane">
+    <!-- ==== LIQUID GLASS: переключатель темы ==== -->
+    <div class="settings-card">
+      <div class="settings-title">
+        <span>🎨 Оформление</span>
+      </div>
+      <p style="font-size: 12.5px; color: var(--text-muted); line-height: 1.4;">
+        Стеклянный интерфейс с живым фоном. Тема запоминается на этом устройстве.
+      </p>
+      <div class="lg-theme-switch">
+        <button type="button" class="lg-theme-opt" data-theme-value="dark" onclick="lgSetTheme('dark')">🌙 Тёмная</button>
+        <button type="button" class="lg-theme-opt" data-theme-value="light" onclick="lgSetTheme('light')">☀️ Светлая</button>
+      </div>
+    </div>
+    <!-- ==== /LIQUID GLASS: переключатель темы ==== -->
     <div class="settings-card">
       <div class="settings-title">
         <span>☁️ Облачная база данных</span>
@@ -4232,6 +4726,421 @@
     refreshData(false);
     startAutoRefresh();
     startProgressPolling(false);
+    /* ==== LIQUID GLASS: скрипт ==== */
+    (function () {
+      var LG_KEY = 'mng_theme';
+      var root = document.documentElement;
+
+      // Тёмная — тема по умолчанию: за системной настройкой не следуем,
+      // иначе у владельца светлого телефона MiniApp внезапно открывался бы светлым.
+      function lgCurrentTheme() {
+        return root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+      }
+
+      window.lgSetTheme = function (theme) {
+        if (theme !== 'light' && theme !== 'dark') return;
+        root.setAttribute('data-theme', theme);
+        try { localStorage.setItem(LG_KEY, theme); } catch (e) {}
+        lgMarkThemeButtons();
+        if (typeof tg !== 'undefined' && tg && tg.setHeaderColor) {
+          tg.setHeaderColor(theme === 'light' ? '#eceffa' : '#0b0c13');
+        }
+      };
+
+      function lgMarkThemeButtons() {
+        var cur = lgCurrentTheme();
+        var opts = document.querySelectorAll('.lg-theme-opt');
+        for (var i = 0; i < opts.length; i++) {
+          opts[i].classList.toggle('active', opts[i].getAttribute('data-theme-value') === cur);
+        }
+      }
+
+      // Скользящая стеклянная пилюля таб-бара. Позиция берётся из реальной
+      // геометрии активного пункта, поэтому не зависит от количества вкладок.
+      var lgBar = null;
+      var lgSyncing = false;
+      function lgSyncTabIndicator(animate) {
+        if (lgSyncing) return;
+        var nav = document.querySelector('.tab-nav');
+        var active = nav && nav.querySelector('.tab-item.active');
+        if (!nav || !active) return;
+        lgSyncing = true;
+        if (!lgBar) {
+          lgBar = document.createElement('span');
+          lgBar.className = 'lg-tab-indicator';
+          if (!animate) lgBar.style.transition = 'none';
+          nav.appendChild(lgBar);
+        } else if (!animate && lgBar.style.transition !== 'none') {
+          lgBar.style.transition = 'none';
+          void lgBar.offsetWidth;
+          lgBar.style.transition = '';
+        }
+        var navRect = nav.getBoundingClientRect();
+        var rect = active.getBoundingClientRect();
+        lgBar.style.width = rect.width + 'px';
+        lgBar.style.transform = 'translate3d(' + (rect.left - navRect.left) + 'px, 0, 0)';
+        lgSyncing = false;
+      }
+
+      function lgObserveTabs() {
+        var nav = document.querySelector('.tab-nav');
+        if (!nav) return;
+        nav.addEventListener('click', function () {
+          requestAnimationFrame(function () { lgSyncTabIndicator(true); });
+        }, true);
+        // switchTab может быть вызван и программно (BackButton Telegram), поэтому
+        // следим за классом активного пункта, а не только за кликом.
+        if (typeof MutationObserver === 'function') {
+          new MutationObserver(function (muts) {
+            for (var i = 0; i < muts.length; i++) {
+              var t = muts[i].target;
+              if (t && t.classList && t.classList.contains('tab-item')) {
+                requestAnimationFrame(function () { lgSyncTabIndicator(true); });
+                return;
+              }
+            }
+          }).observe(nav, { attributes: true, attributeFilter: ['class'], subtree: true });
+        }
+      }
+
+      // «Тик» чисел телеметрии: значение меняется — число мягко въезжает.
+      function lgObserveTicks() {
+        var scope = document.getElementById('tabMining');
+        if (!scope || typeof MutationObserver !== 'function') return;
+        new MutationObserver(function (muts) {
+          for (var i = 0; i < muts.length; i++) {
+            var el = muts[i].type === 'characterData' ? muts[i].target.parentElement : muts[i].target;
+            if (!el || !el.classList || !el.classList.contains('val')) continue;
+            el.classList.remove('lg-tick');
+            void el.offsetWidth;
+            el.classList.add('lg-tick');
+          }
+        }).observe(scope, { characterData: true, childList: true, subtree: true });
+      }
+
+      function lgInit() {
+        // Атрибут всегда выставляется явно: так светлая тема из CSS и подсветка
+        // кнопок в «Настройках» не могут разойтись между собой.
+        root.setAttribute('data-theme', lgCurrentTheme());
+        lgMarkThemeButtons();
+        lgSyncTabIndicator(false);
+        lgObserveTabs();
+        lgObserveTicks();
+        window.addEventListener('resize', function () { lgSyncTabIndicator(false); });
+        window.addEventListener('orientationchange', function () { lgSyncTabIndicator(false); });
+      }
+
+      window.lgMarkThemeButtons = lgMarkThemeButtons;
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', lgInit);
+      } else {
+        lgInit();
+      }
+    })();
+    /* ==== /LIQUID GLASS: скрипт ==== */
+    /* ==== LIQUID GLASS: слайдер вкладок (скрипт) ==== */
+
+    /* Панель вкладок становится настоящим слайдером:
+         1) пилюлю можно тащить пальцем — она идёт за ним и пружинит к
+            ближайшему пункту; тап по пункту и программный switchTab (BackButton
+            Telegram) работают как раньше, потому что switchTab не переписан;
+         2) страницу можно листать горизонтальным свайпом: она едет за пальцем
+            и приглушается, пилюля едет вместе с ней, а на отпускании уходящая
+            страница уезжает в сторону и следующая въезжает с той же стороны.
+       На первой и последней вкладке включается сопротивление.
+       Вертикальный скролл не перехватывается: жест «залипает» на горизонтали
+       только после явного перевеса по X. Тач по canvas графика игнорируется —
+       у него свои обработчики. При prefers-reduced-motion слайдер молчит. */
+    (function () {
+      var TABS = ['mining', 'farmStats', 'payday', 'cases', 'character', 'settings'];
+      var nav = document.querySelector('.tab-nav');
+      if (!nav) return;
+
+      function lgMotionOK() {
+        return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      }
+      function lgHaptic() {
+        try {
+          var app = window.Telegram && window.Telegram.WebApp;
+          if (app && app.HapticFeedback) app.HapticFeedback.selectionChanged();
+        } catch (e) {}
+      }
+      function lgItems() {
+        return Array.prototype.slice.call(nav.querySelectorAll('.tab-item'));
+      }
+      // Пилюля — только готовая. Свою копию не создаём: слой Liquid Glass
+      // создаёт свой элемент безусловно, и вторая копия дала бы две пилюли.
+      function lgPuck() {
+        return nav.querySelector('.lg-tab-indicator');
+      }
+      // Геометрия пунктов относительно панели: от количества вкладок не зависит.
+      function lgMetrics() {
+        var base = nav.getBoundingClientRect();
+        return lgItems().map(function (it) {
+          var r = it.getBoundingClientRect();
+          var left = r.left - base.left;
+          return { left: left, width: r.width, center: left + r.width / 2 };
+        });
+      }
+      function lgSetPuck(left, width, animate) {
+        var p = lgPuck();
+        if (!p) return;
+        p.style.transition = animate ? '' : 'none';
+        p.style.width = width + 'px';
+        p.style.transform = 'translate3d(' + left + 'px, 0, 0)';
+      }
+      function lgLerp(a, b, t) { return a + (b - a) * t; }
+      function lgClamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+      function lgIndexOf(name) {
+        var i = TABS.indexOf(name);
+        return i < 0 ? 0 : i;
+      }
+      function lgNearest(center, m) {
+        var best = 0;
+        var bestD = Infinity;
+        for (var i = 0; i < m.length; i++) {
+          var d = Math.abs(m[i].center - center);
+          if (d < bestD) { bestD = d; best = i; }
+        }
+        return best;
+      }
+      // После перетаскивания браузер всё равно бросит click туда, где палец.
+      // Если он попадёт на другой пункт, выбранная вкладка «перескочит» — гасим.
+      var lgKiller = null;
+      function lgSuppressClick() {
+        if (lgKiller) nav.removeEventListener('click', lgKiller, true);
+        lgKiller = function (ev) { ev.stopPropagation(); ev.preventDefault(); };
+        nav.addEventListener('click', lgKiller, true);
+        setTimeout(function () {
+          if (lgKiller) nav.removeEventListener('click', lgKiller, true);
+          lgKiller = null;
+        }, 400);
+      }
+      // Слой Liquid Glass при первой синхронизации (animate = false) оставлял
+      // пилюле инлайновый transition: none — она прыгала вместо того, чтобы
+      // ехать. Снимаем это состояние, иначе слайдер остаётся без анимации.
+      function lgUnfreezePuck() {
+        var p = lgPuck();
+        if (p && p.style.transition === 'none') p.style.transition = '';
+      }
+
+      /* ---------- 1. Перетаскивание пилюли по панели ---------- */
+      var lgDrag = null;
+      var lgDragMove = null;
+      var lgDragEnd = null;
+
+      function lgStopDragListeners() {
+        if (lgDragMove) document.removeEventListener('pointermove', lgDragMove);
+        if (lgDragEnd) {
+          document.removeEventListener('pointerup', lgDragEnd);
+          document.removeEventListener('pointercancel', lgDragEnd);
+        }
+        lgDragMove = null;
+        lgDragEnd = null;
+      }
+
+      nav.addEventListener('pointerdown', function (e) {
+        if (!lgMotionOK() || lgDrag) return;
+        if (e.button) return;
+        var m = lgMetrics();
+        if (!m.length) return;
+        var idx = lgIndexOf(activeTab);
+        lgDrag = {
+          id: e.pointerId,
+          x: e.clientX,
+          moved: 0,
+          idx: idx,
+          near: idx,
+          base: nav.getBoundingClientRect().left,
+          width: m[idx].width,
+          min: m[0].left,
+          max: m[m.length - 1].left + m[m.length - 1].width,
+          m: m
+        };
+        // Следим на уровне документа, а НЕ через setPointerCapture: захват
+        // указателя переназначает адресата совместимых mouse-событий, и обычный
+        // тап по пункту мог бы перестать срабатывать. Пока палец не сдвинулся на
+        // 5 px, мы вообще ничего не делаем — тап остаётся нетронутым.
+        lgDragMove = function (ev) {
+          var d = lgDrag;
+          if (!d || ev.pointerId !== d.id) return;
+          var dx = ev.clientX - d.x;
+          if (Math.abs(dx) > d.moved) d.moved = Math.abs(dx);
+          if (d.moved < 5) return;
+          if (!nav.classList.contains('lg-grabbing')) {
+            nav.classList.add('lg-grabbing');
+            lgHaptic();
+          }
+          // Пилюля встаёт под палец и идёт за ним ровно, а не смещается на дельту
+          // от своего прежнего места: так палец и выбранный пункт всегда означают
+          // одно и то же, где бы палец ни опустился.
+          var half = d.width / 2;
+          var center = lgClamp(ev.clientX - d.base, d.min + half, d.max - half);
+          lgSetPuck(center - half, d.width, false);
+          var over = lgNearest(center, d.m);
+          if (over !== d.near) { d.near = over; lgHaptic(); }
+        };
+        lgDragEnd = function (ev) {
+          var d = lgDrag;
+          if (!d) return;
+          if (ev && ev.pointerId != null && ev.pointerId !== d.id) return;
+          lgStopDragListeners();
+          lgFinishDrag(d, !!(ev && ev.type === 'pointercancel'));
+        };
+        document.addEventListener('pointermove', lgDragMove);
+        document.addEventListener('pointerup', lgDragEnd);
+        document.addEventListener('pointercancel', lgDragEnd);
+      });
+
+      function lgFinishDrag(d, cancelled) {
+        lgDrag = null;
+        nav.classList.remove('lg-grabbing');
+        if (!cancelled && d.moved < 5) return;   // это тап — пусть сработает onclick
+        var p = lgPuck();
+        if (!p) return;
+        p.style.transition = '';
+        var base = nav.getBoundingClientRect();
+        var r = p.getBoundingClientRect();
+        var idx = lgNearest(r.left - base.left + r.width / 2, d.m);
+        if (TABS[idx] !== activeTab) {
+          lgHaptic();
+          lgSuppressClick();
+          switchTab(TABS[idx]);
+        } else {
+          // Пилюлю уронили на ту же вкладку — класс не сменится, наблюдатель
+          // слоя не сработает, поэтому возвращаем её сами.
+          lgSetPuck(d.m[idx].left, d.m[idx].width, true);
+        }
+      }
+
+      /* ---------- 2. Свайп страниц ---------- */
+      var lgSwipe = null;
+
+      function lgSkipTarget(t) {
+        if (!t || !t.closest) return false;
+        return !!(t.closest('canvas') || t.closest('.tab-nav') || t.closest('.modal-overlay') ||
+                  t.closest('input') || t.closest('textarea') || t.closest('select'));
+      }
+
+      function lgClearGhost(el) {
+        if (!el) return;
+        el.classList.remove('lg-out-left', 'lg-out-right');
+        el.style.position = '';
+        el.style.top = '';
+        el.style.left = '';
+        el.style.width = '';
+        el.style.height = '';
+      }
+
+      document.addEventListener('touchstart', function (e) {
+        lgSwipe = null;
+        if (!lgMotionOK() || lgDrag) return;
+        if (e.touches.length !== 1) return;
+        if (lgSkipTarget(e.target)) return;
+        var pane = document.querySelector('.tab-pane.active');
+        if (!pane) return;
+        lgSwipe = {
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY,
+          axis: null,
+          off: 0,
+          pane: pane,
+          idx: lgIndexOf(activeTab),
+          w: window.innerWidth || 360,
+          t0: Date.now(),
+          m: null
+        };
+      }, { passive: true });
+
+      document.addEventListener('touchmove', function (e) {
+        var s = lgSwipe;
+        if (!s || e.touches.length !== 1) return;
+        var dx = e.touches[0].clientX - s.x;
+        var dy = e.touches[0].clientY - s.y;
+        if (s.axis === null) {
+          if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;   // рано решать
+          if (Math.abs(dx) <= Math.abs(dy) * 1.2) { s.axis = 'v'; return; }
+          s.axis = 'x';
+          s.w = window.innerWidth || document.documentElement.clientWidth || 360;
+          s.m = lgMetrics();
+          s.pane.classList.add('lg-dragging');
+          var p = lgPuck();
+          if (p) p.style.transition = 'none';
+        }
+        if (s.axis !== 'x') return;
+        if (e.cancelable) e.preventDefault();
+        var last = TABS.length - 1;
+        // За краями страниц нет — там палец идёт с сопротивлением.
+        var edge = (s.idx === 0 && dx > 0) || (s.idx === last && dx < 0);
+        s.off = edge ? dx * 0.3 : dx * 0.92;
+        s.pane.style.transform = 'translate3d(' + s.off + 'px, 0, 0)';
+        s.pane.style.opacity = String(1 - Math.min(0.5, Math.abs(s.off) / s.w * 0.7));
+        // Пилюля едет вместе со страницей — то самое «это один слайдер».
+        var to = lgClamp(s.idx + (dx < 0 ? 1 : -1), 0, last);
+        var t = Math.min(1, Math.abs(dx) / (s.w * 0.55));
+        var a = s.m[s.idx];
+        var b = s.m[to];
+        if (a && b) lgSetPuck(lgLerp(a.left, b.left, t), lgLerp(a.width, b.width, t), false);
+      }, { passive: false });
+
+      function lgEndSwipe() {
+        var s = lgSwipe;
+        lgSwipe = null;
+        if (!s || s.axis !== 'x') return;
+        var last = TABS.length - 1;
+        var off = s.off;
+        var dir = off < 0 ? 1 : -1;                       // 1 — вперёд (влево)
+        var target = s.idx + dir;
+        var dur = Math.max(1, Date.now() - s.t0);
+        var far = Math.abs(off) > s.w * 0.2;              // протянули достаточно
+        var flick = Math.abs(off) / dur > 0.55 && Math.abs(off) > 26;   // резкий бросок
+        var ok = (far || flick) && target >= 0 && target <= last;
+
+        s.pane.classList.remove('lg-dragging');
+        s.pane.style.transform = '';
+        s.pane.style.opacity = '';
+        var p = lgPuck();
+        if (p) p.style.transition = '';
+
+        if (!ok) {
+          var a = s.m[s.idx];
+          if (a) lgSetPuck(a.left, a.width, true);
+          return;
+        }
+        // Уходящая страница: фиксируем её ровно там, где она была, вынимаем из
+        // потока и уводим в сторону — новая (уже активная) занимает её место,
+        // поэтому слайд читается как одновременный, а не «сначала туда, потом сюда».
+        var out = s.pane;
+        var r = out.getBoundingClientRect();
+        out.style.position = 'fixed';
+        out.style.top = r.top + 'px';
+        out.style.left = r.left + 'px';
+        out.style.width = r.width + 'px';
+        out.style.height = r.height + 'px';
+        out.classList.add(dir > 0 ? 'lg-out-left' : 'lg-out-right');
+        setTimeout(function () { lgClearGhost(out); }, 300);
+
+        lgHaptic();
+        switchTab(TABS[target]);
+
+        var fresh = document.querySelector('.tab-pane.active');
+        if (fresh) {
+          var cls = dir > 0 ? 'lg-in-left' : 'lg-in-right';
+          fresh.classList.add(cls);
+          setTimeout(function () { fresh.classList.remove(cls); }, 400);
+        }
+      }
+      document.addEventListener('touchend', lgEndSwipe);
+      document.addEventListener('touchcancel', lgEndSwipe);
+
+      /* ---------- 3. Инициализация ---------- */
+      lgUnfreezePuck();
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', lgUnfreezePuck);
+      }
+    })();
+    /* ==== /LIQUID GLASS: слайдер вкладок (скрипт) ==== */
   </script>
 </body>
 </html>

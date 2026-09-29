@@ -1976,6 +1976,99 @@
       }
     }
     /* ==== /LIQUID GLASS: слайдер вкладок ==== */
+    /* ==== LIQUID GLASS: плавающая капсула таб-бара ==== */
+    /* Панель вкладок — плавающая капсула. Слой стоит последним в <style>, а
+       значит перекрывает и базовые правила, и слой Liquid Glass, и слой
+       слайдера: пилюля внутри просто остаётся на своём месте. */
+    :root {
+      --lg-nav-inset: 10px;    /* отступ от боковых краёв экрана */
+      --lg-nav-lift: 12px;     /* насколько панель оторвана от низа экрана */
+      --lg-nav-radius: 28px;   /* радиус капсулы */
+      --lg-nav-space: 96px;    /* запас снизу под панель; уточняет скрипт */
+    }
+    .tab-nav {
+      left: calc(var(--lg-nav-inset) + env(safe-area-inset-left, 0px));
+      right: calc(var(--lg-nav-inset) + env(safe-area-inset-right, 0px));
+      bottom: calc(var(--lg-nav-lift) + env(safe-area-inset-bottom, 0px));
+      width: auto;
+      /* На широком экране капсула не растягивается во всю ширину: авто-поля
+         при заданных left/right центрируют её (CSS 2.1 §10.3.7). */
+      max-width: 540px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 6px;
+      border: 1px solid var(--glass-border);
+      border-radius: var(--lg-nav-radius);
+      background:
+        linear-gradient(180deg, var(--glass-sheen) 0%, rgba(255, 255, 255, 0) 62%),
+        var(--glass-bg);
+      box-shadow:
+        0 20px 44px rgba(0, 0, 0, 0.46),
+        0 4px 12px rgba(0, 0, 0, 0.28),
+        var(--glass-inset);
+      backdrop-filter: blur(26px) saturate(180%);
+      -webkit-backdrop-filter: blur(26px) saturate(180%);
+      /* Свой контекст наложения: размытие не «плывёт» при скролле страницы. */
+      transform: translateZ(0);
+      transition:
+        bottom 0.34s var(--lg-ease),
+        opacity 0.26s ease;
+    }
+
+    /* Содержимое страницы уходит под капсулу ровно на её высоту плюс воздух. */
+    body { padding-bottom: var(--lg-nav-space); }
+
+    /* Подписи отдают панели всю ширину пункта (раньше её съедали боковые
+       отступы, и на узком экране текст соседних пунктов налезал друг на друга).
+       Размер подписи подбирает скрипт — одинаковый для всех вкладок. */
+    .tab-item { padding-left: 0; padding-right: 0; }
+    .tab-label {
+      white-space: nowrap;
+      max-width: 100%;
+    }
+
+    /* Пилюля активной вкладки — капсула внутри капсулы. Зазор снизу больше не
+       включает safe-area: теперь она снаружи панели, а не внутри неё. */
+    .lg-tab-indicator {
+      top: 6px;
+      bottom: 6px;
+      border-radius: 999px;
+    }
+
+    /* Всплывашка держится того же запаса, что и контент, поэтому не оказывается
+       внутри панели. */
+    .toast { bottom: calc(var(--lg-nav-space) - 6px); }
+
+    /* Клавиатура: панель уезжает за нижний край и перестаёт принимать тычки. */
+    .tab-nav.lg-nav-away {
+      bottom: calc(-2 * var(--lg-nav-radius) - 24px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Низкий экран (телефон в landscape): капсула становится уже, подписи
+       скрываются — иначе она занимала бы половину высоты. */
+    @media (max-height: 430px) {
+      .tab-nav {
+        padding: 4px 6px;
+        border-radius: 999px;
+      }
+      .tab-label { display: none; }
+      .tab-icon { font-size: 22px; }
+      .lg-tab-indicator { top: 4px; bottom: 4px; }
+    }
+
+    /* Мягкий край экрана: панель не «плавает» вечно после клавиатуры. */
+    @media (prefers-reduced-motion: reduce) {
+      .tab-nav { transition: none; }
+    }
+
+    /* Без backdrop-filter стекло падает на плотную подложку — капсула остаётся
+       читаемой, просто без размытия. */
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .tab-nav { background: var(--glass-bg-solid); }
+    }
+    /* ==== /LIQUID GLASS: плавающая капсула таб-бара ==== */
   </style>
 </head>
 <body>
@@ -5141,6 +5234,99 @@
       }
     })();
     /* ==== /LIQUID GLASS: слайдер вкладок (скрипт) ==== */
+    /* ==== LIQUID GLASS: плавающая капсула таб-бара (скрипт) ==== */
+    (function () {
+      var nav = document.querySelector('.tab-nav');
+      if (!nav) return;
+      var root = document.documentElement;
+
+      function lgNavLift() {
+        var v = parseFloat(getComputedStyle(root).getPropertyValue('--lg-nav-lift'));
+        return isNaN(v) ? 12 : v;
+      }
+      // Запас снизу = высота панели + её отступ от низа + воздух. Считается по
+      // факту, поэтому одинаково верен при других шрифтах и в компактном режиме.
+      function lgNavMeasure() {
+        var h = nav.offsetHeight;
+        if (!h) return;
+        root.style.setProperty('--lg-nav-space', (h + lgNavLift() + 22) + 'px');
+      }
+
+      // Подписи шести вкладок шире своих пунктов и налезали друг на друга.
+      // Подбираем ОДИН размер для всех: шаг 0.25px от 11 вниз до 9 — как в iOS,
+      // где подписи выровнены, а не каждая в своём размере. Мерим по scrollWidth,
+      // а не по ширине бокса: у подписи есть max-width, иначе она «влезала» бы,
+      // просто обрезавшись по краям пункта.
+      function lgNavFitLabels() {
+        var items = nav.querySelectorAll('.tab-item');
+        var labels = nav.querySelectorAll('.tab-label');
+        if (!items.length || !labels.length) return;
+        if (items[0].getBoundingClientRect().width < 1) return;   // подписи скрыты
+        var chosen = 11;
+        for (var s = 11; s >= 9.001; s -= 0.25) {
+          var i;
+          for (i = 0; i < items.length; i++) {
+            var lbl = items[i].querySelector('.tab-label');
+            if (!lbl) continue;
+            lbl.style.fontSize = s + 'px';
+            // 6px запаса: соседние пункты стыкуются вплотную, и подпись, влезшая
+            // «ровно в край», читается как слипшаяся с соседней.
+            if (lbl.scrollWidth > items[i].clientWidth - 6) break;
+          }
+          if (i === items.length) { chosen = s; break; }
+          chosen = 9;   // минимум тоже не влез: текст аккуратно обрежется по max-width
+        }
+        for (var j = 0; j < labels.length; j++) labels[j].style.fontSize = chosen + 'px';
+      }
+
+      // Подгонка подписей меняет высоту панели, поэтому запас снизу — после неё.
+      function lgNavRelayout() {
+        lgNavFitLabels();
+        lgNavMeasure();
+      }
+
+      // Клавиатура: панель накрывает поле, в которое печатают. Прячем её только
+      // когда клавиатура реально открыта (сжался visualViewport) И фокус в поле
+      // ввода — иначе капсула исчезала бы при любом изменении вьюпорта.
+      var vv = window.visualViewport;
+      function lgInputFocused() {
+        var el = document.activeElement;
+        if (!el) return false;
+        var tag = (el.tagName || '').toUpperCase();
+        return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true;
+      }
+      function lgNavKeyboard() {
+        var open = false;
+        if (vv && typeof vv.height === 'number') {
+          var shrink = (window.innerHeight || vv.height) - vv.height;
+          open = shrink > 120 && lgInputFocused();
+        }
+        nav.classList.toggle('lg-nav-away', open);
+        if (open) root.style.setProperty('--lg-nav-space', '24px');
+        else lgNavRelayout();
+      }
+
+      lgNavRelayout();
+      window.addEventListener('resize', lgNavRelayout);
+      window.addEventListener('orientationchange', lgNavRelayout);
+      if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+        // Метрики шрифта догружаются позже — размер подписей и высота панели
+        // после этого другие.
+        document.fonts.ready.then(lgNavRelayout);
+      }
+      if (vv) {
+        vv.addEventListener('resize', lgNavKeyboard);
+        vv.addEventListener('scroll', lgNavKeyboard);
+      }
+      document.addEventListener('focusin', lgNavKeyboard, true);
+      document.addEventListener('focusout', function () {
+        setTimeout(lgNavKeyboard, 60);
+      }, true);
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', lgNavRelayout);
+      }
+    })();
+    /* ==== /LIQUID GLASS: плавающая капсула таб-бара (скрипт) ==== */
   </script>
 </body>
 </html>

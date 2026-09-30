@@ -1687,7 +1687,12 @@
         radial-gradient(120% 120% at 50% 0%, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.03) 62%),
         var(--glass-tint);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 10px 22px rgba(0, 0, 0, 0.34);
-      transition: transform 0.42s var(--lg-ease), width 0.42s var(--lg-ease);
+      /* Позиция пилюли живёт в свойстве `translate`, а НЕ в `transform`:
+         у неё есть ещё и `scale` (рост под пальцем), а эти свойства
+         складываются так, что `scale` применяется ПОСЛЕ смещения. Через
+         `transform` рост умножал бы смещение — пилюля уезжала бы тем
+         правее, чем сильнее растянута. */
+      transition: translate 0.42s var(--lg-ease), width 0.42s var(--lg-ease);
     }
     @keyframes lg-bob {
       0% { transform: translateY(3px) scale(0.86); }
@@ -1744,11 +1749,15 @@
       to { transform: none; opacity: 1; }
     }
 
-    /* Модалки и тосты въезжают мягко */
+    /* Модалки и тосты въезжают мягко — и двигается ТОЛЬКО въезд. Тост
+       центрируется через `transform: translateX(-50%)`, поэтому анимация по
+       `transform` (с обнулением в конце) сдвигала его вправо: он висел не по
+       центру, а справа. У въезда свои свойства `translate`/`scale`, которые с
+       центровкой не спорят. */
     .modal-box, #toast { animation: lg-pop 0.4s var(--lg-ease) both; }
     @keyframes lg-pop {
-      from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.97); }
-      to { opacity: 1; transform: none; }
+      from { opacity: 0; translate: 0 14px; scale: 0.97; }
+      to { opacity: 1; translate: none; scale: none; }
     }
 
     /* Переключатель темы в «Настройках» */
@@ -1912,9 +1921,11 @@
 
     /* Пилюля. Инлайновый transition отсюда не ставим: его гасит скрипт жеста,
        а возвращает обратно на отпускании — так пилюля идёт за пальцем без
-       инерции, но пружинит к пункту, когда палец ушёл. */
+       инерции, но пружинит к пункту, когда палец ушёл. Переходы — по `translate`
+       (позиция) и `scale` (рост): эти свойства не спорят друг с другом, а
+       `transform` умножал бы смещение на масштаб. */
     .lg-tab-indicator {
-      will-change: transform, width, scale;
+      will-change: translate, width, scale;
       /* Кромка стекла: светлая сверху, тёмная снизу, еле заметные боковые
          отблески — так у пилюли читается толщина. Собрана в переменную, чтобы
          состояние «в руке» меняло только внешнюю тень, а не всю кромку. */
@@ -1936,7 +1947,7 @@
          вверх и на возврате чуть сплющивается, а не щёлкает как переключатель. */
       --lg-pill-pop: cubic-bezier(0.26, 1.62, 0.38, 1);
       transition:
-        transform 0.44s var(--lg-ease),
+        translate 0.44s var(--lg-ease),
         width 0.44s var(--lg-ease),
         scale 0.44s var(--lg-pill-pop),
         box-shadow 0.3s ease,
@@ -1962,7 +1973,7 @@
        кромки пилюли выходят за панель сверху и снизу. При движении она
        вытягивается по ходу с ужиманием поперёк, причём вязко: значение ведёт
        скрипт (`lgPullTick`), а не сам переход. Рост идёт свойством scale —
-       поэтому он не спорит с позицией, которую скрипт пишет в transform. */
+       поэтому он не спорит с позицией, которую скрипт пишет в translate. */
     .tab-nav.lg-held .lg-tab-indicator {
       scale: var(--lg-pill-sx, 1.22) var(--lg-pill-sy, 1.48);
       opacity: 1;
@@ -4992,7 +5003,10 @@
         var navRect = nav.getBoundingClientRect();
         var rect = active.getBoundingClientRect();
         lgBar.style.width = rect.width + 'px';
-        lgBar.style.transform = 'translate3d(' + (rect.left - navRect.left) + 'px, 0, 0)';
+        // Позиция — в свойстве `translate` (см. комментарий у `.lg-tab-indicator`),
+        // а смещение берётся от padding-box панели (минус рамка): именно оттуда
+        // отсчитывается `left: 0` пилюли, поэтому она встаёт ровно под пункт.
+        lgBar.style.translate = (rect.left - navRect.left - nav.clientLeft) + 'px';
         lgSyncing = false;
       }
 
@@ -5068,8 +5082,9 @@
        у него свои обработчики. При prefers-reduced-motion слайдер молчит.
 
        3) Пилюля ведёт себя как жидкое стекло: пока её держат, она подрастает и
-          становится заметно выше панели (свойство scale, а не transform — иначе
-          рост спорил бы с позицией, которую пишет lgSetPuck), при быстром
+          становится заметно выше панели (рост — свойством scale, а позиция —
+          свойством translate: через transform они бы перемножались и капля
+          уезжала бы тем правее, чем сильнее растянута), при быстром
           движении вытягивается по ходу и ужимается поперёк — вязко, с
           запаздыванием за жестом и рассасыванием после остановки пальца, — а
           блик уходит за пальцем. Кромки светятся сверху и темнеют снизу, под
@@ -5098,27 +5113,40 @@
         return nav.querySelector('.lg-tab-indicator');
       }
       // Геометрия пунктов относительно панели: от количества вкладок не зависит.
+      // Отсчёт — от padding-box панели (минус рамка): именно оттуда отсчитывает
+      // `left: 0` сама пилюля, поэтому она встаёт ровно под пункт, а не на рамку
+      // правее.
       function lgMetrics() {
         var base = nav.getBoundingClientRect();
         return lgItems().map(function (it) {
           var r = it.getBoundingClientRect();
-          var left = r.left - base.left;
+          var left = r.left - base.left - nav.clientLeft;
           return { left: left, width: r.width, center: left + r.width / 2 };
         });
       }
-      // Переход пилюли на время жеста. Позиция и ширина идут за пальцем без
-      // инерции, а у `scale` остаётся короткий ровный переход: он сглаживает
-      // покадровые значения вязкости и не даёт капле «щёлкнуть» в тот момент,
-      // когда жест забирает пилюлю себе (раньше здесь стоял `transition: none`,
-      // и рост «в руку» обрывался на полпути до целевого размера).
-      var LG_DRAG_TRANSITION = 'transform 0s linear, width 0s linear, scale 0.18s linear';
+      // Позиция капли живёт в свойстве `translate`, а НЕ в `transform`: у капли есть
+      // ещё и `scale` (рост под пальцем), а эти свойства складываются так, что
+      // `scale` применяется ПОСЛЕ смещения. Через `transform` рост умножал бы
+      // смещение — капля уезжала бы тем правее, чем сильнее растянута, и дрожала
+      // бы вместе с колебаниями растяжения (ровно это и виделось на телефоне).
+      // Переход на время жеста: позиция и ширина идут за пальцем без инерции, а
+      // у `scale` остаётся короткий ровный переход — он сглаживает покадровые
+      // значения вязкости и не даёт капле «щёлкнуть» в тот момент, когда жест
+      // забирает пилюлю себе (раньше здесь стоял `transition: none`, и рост
+      // «в руку» обрывался на полпути до целевого размера).
+      var LG_DRAG_TRANSITION = 'translate 0s linear, width 0s linear, scale 0.18s linear';
+      // Окно мягкого перетекания в начале жеста (см. `d.glideT`): капля
+      // подтягивается под палец, а не прыгает туда.
+      var LG_GLIDE_TRANSITION = 'translate 0.12s var(--lg-ease), width 0s linear, scale 0.18s linear';
+      var lgPuckLeft = 0;   // раскладка капли (без масштаба), в координатах панели
 
-      function lgSetPuck(left, width, animate) {
+      function lgSetPuck(left, width, animate, glide) {
         var p = lgPuck();
         if (!p) return;
-        p.style.transition = animate ? '' : LG_DRAG_TRANSITION;
+        lgPuckLeft = left;
+        p.style.transition = animate ? '' : (glide ? LG_GLIDE_TRANSITION : LG_DRAG_TRANSITION);
         p.style.width = width + 'px';
-        p.style.transform = 'translate3d(' + left + 'px, 0, 0)';
+        p.style.translate = left + 'px';
       }
       function lgLerp(a, b, t) { return a + (b - a) * t; }
       function lgClamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -5185,8 +5213,11 @@
         nav.classList.toggle('lg-held', on);
         if (!on) {
           lgPullStop();   // рост, растяжение и блик — назад
-          nav.style.removeProperty('--lg-pill-hx');
-          nav.style.removeProperty('--lg-pill-hy');
+          var p = lgPuck();
+          if (p) {
+            p.style.removeProperty('--lg-pill-hx');
+            p.style.removeProperty('--lg-pill-hy');
+          }
         }
       }
       // Чем быстрее идёт палец, тем сильнее вытягивание — и на столько же уже
@@ -5214,15 +5245,20 @@
       }
       // Форма пишется в переменные панели только когда это заметно: запись в
       // стиль — это пересчёт, а событий жеста бывает по несколько в кадр.
+      // Переменные пишутся на САМУ каплю, а не на панель: с панели они
+      // наследовались бы всеми пунктами, и каждый кадр вязкости заставлял бы
+      // браузер пересчитывать стили всего таб-бара (на телефоне это дрожание).
       function lgPullPaint() {
+        var p = lgPuck();
+        if (!p) return;
         var s = lgPull.cur;
         if (s <= LG_EPS) {
-          nav.style.removeProperty('--lg-pill-sx');
-          nav.style.removeProperty('--lg-pill-sy');
+          p.style.removeProperty('--lg-pill-sx');
+          p.style.removeProperty('--lg-pill-sy');
           return;
         }
-        nav.style.setProperty('--lg-pill-sx', (1.22 + s).toFixed(3));
-        nav.style.setProperty('--lg-pill-sy', (1.48 - s * 0.9).toFixed(3));
+        p.style.setProperty('--lg-pill-sx', (1.22 + s).toFixed(3));
+        p.style.setProperty('--lg-pill-sy', (1.48 - s * 0.9).toFixed(3));
       }
       function lgPullTick(ts) {
         var p = lgPull;
@@ -5264,15 +5300,48 @@
         lgPullReset();
         lgPullPaint();
       }
-      // Блик идёт за пальцем: точка берётся в процентах от самой пилюли, поэтому
+      // Геометрия капли для блика снимается ОДИН РАЗ за жест. Раньше на каждое
+      // событие здесь читался getBoundingClientRect() сразу после записи позиции —
+      // это принудительный пересчёт раскладки (по нескольку раз за кадр на
+      // телефоне), из-за которого капля подёргивалась. Теперь позиция и масштаб
+      // известны из наших же значений, а блик считается арифметикой.
+      var lgGeom = null;
+      function lgPillScale() {
+        if (!nav.classList.contains('lg-held')) return [1, 1];
+        return [1.22 + lgPull.cur, 1.48 - lgPull.cur * 0.9];
+      }
+      function lgGeomRead() {
+        var p = lgPuck();
+        if (!p) { lgGeom = null; return; }
+        var nr = nav.getBoundingClientRect();
+        var pr = p.getBoundingClientRect();
+        var s = lgPillScale();
+        var w = p.offsetWidth;
+        var h = p.offsetHeight;
+        if (!w || !h) { lgGeom = null; return; }
+        // Визуальная коробка отстоит от раскладки на половину прироста масштаба.
+        lgPuckLeft = (pr.left - nr.left - nav.clientLeft) - w * (1 - s[0]) / 2;
+        lgGeom = {
+          base: nr.left + nav.clientLeft,   // padding-box панели по X
+          vtop: nr.top + nav.clientTop,     // padding-box панели по Y
+          w: w,
+          h: h,
+          top: p.offsetTop                  // раскладка капли внутри панели
+        };
+      }
+      // Блик идёт за пальцем: точка берётся в процентах от самой капли, поэтому
       // работает и при вытягивании.
       function lgPillGlint(x, y) {
         var p = lgPuck();
-        if (!p || x == null) return;
-        var r = p.getBoundingClientRect();
-        if (!r.width || !r.height) return;
-        nav.style.setProperty('--lg-pill-hx', Math.round((x - r.left) / r.width * 100) + '%');
-        nav.style.setProperty('--lg-pill-hy', Math.round((y - r.top) / r.height * 100) + '%');
+        if (!p || x == null || !lgGeom) return;
+        var s = lgPillScale();
+        var w = lgGeom.w * s[0];
+        var h = lgGeom.h * s[1];
+        if (!w || !h) return;
+        var cx = lgGeom.base + lgPuckLeft + lgGeom.w / 2;
+        var cy = lgGeom.vtop + lgGeom.top + lgGeom.h / 2;
+        p.style.setProperty('--lg-pill-hx', Math.round((x - cx) / w * 100 + 50) + '%');
+        p.style.setProperty('--lg-pill-hy', Math.round((y - cy) / h * 100 + 50) + '%');
       }
       function lgUnfreezePuck() {
         var p = lgPuck();
@@ -5332,6 +5401,7 @@
         // на палец, а не только на жест. (Тап без движения тоже поднимет и опустит
         // её — как индикатор в iOS.)
         lgPillHold(true);
+        lgGeomRead();                       // геометрия блика — раз за жест
         lgPillGlint(e.clientX, e.clientY);
         lgDrag = {
           id: e.pointerId,
@@ -5340,7 +5410,10 @@
           moved: 0,
           idx: idx,
           near: idx,
-          base: nav.getBoundingClientRect().left,
+          // Смещение — от padding-box панели: в той же системе считает lgMetrics
+          // и стоит сама капля (`left: 0`), иначе палец и капля расходятся на рамку.
+          base: nav.getBoundingClientRect().left + nav.clientLeft,
+          glideT: 0,
           width: m[idx].width,
           min: m[0].left,
           max: m[m.length - 1].left + m[m.length - 1].width,
@@ -5359,13 +5432,16 @@
           if (!nav.classList.contains('lg-grabbing')) {
             lgGrabbing(true);
             lgHaptic();
+            // Окно мягкого перетекания: капля не щёлкает под палец (при захвате
+            // за край это рывок), а первые ~0.12 с подтягивается к нему.
+            d.glideT = Date.now();
           }
           // Пилюля встаёт под палец и идёт за ним ровно, а не смещается на дельту
           // от своего прежнего места: так палец и выбранный пункт всегда означают
           // одно и то же, где бы палец ни опустился.
           var half = d.width / 2;
           var center = lgClamp(ev.clientX - d.base, d.min + half, d.max - half);
-          lgSetPuck(center - half, d.width, false);
+          lgSetPuck(center - half, d.width, false, d.glideT && (Date.now() - d.glideT) < 120);
           lgPillGlint(ev.clientX, ev.clientY);
           lgPillStretch(ev.clientX - d.lastX);
           d.lastX = ev.clientX;
@@ -5413,7 +5489,7 @@
         p.style.transition = '';
         var base = nav.getBoundingClientRect();
         var r = p.getBoundingClientRect();
-        var idx = lgNearest(r.left - base.left + r.width / 2, d.m);
+        var idx = lgNearest(r.left - base.left - nav.clientLeft + r.width / 2, d.m);
         if (TABS[idx] !== activeTab) {
           lgHaptic();
           lgSuppressClick();
@@ -5477,6 +5553,7 @@
           s.m = lgMetrics();
           // Страницу листают — пилюля тоже в руке: подрастает и тянется за жестом.
           lgPillHold(true);
+          lgGeomRead();
           s.pane.classList.add('lg-dragging');
           var p = lgPuck();
           if (p) p.style.transition = LG_DRAG_TRANSITION;

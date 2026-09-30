@@ -2226,7 +2226,7 @@
 
   <div id="emptyDbNotice" class="banner" style="background: rgba(99, 102, 241, 0.14); border: 1px solid rgba(99, 102, 241, 0.4); color: #c7d2fe;">
     <strong>☁️ База данных подключена успешно!</strong>
-    В базе пока нет записей. В игре откройте меню <code>/mntg</code> и нажмите кнопку <b>[ Синхронизировать сейчас ]</b> (или дождитесь первого PayDay), чтобы отправить первый отчёт. Пока отображаются демо-графики.
+    В базе пока нет записей. В игре откройте меню <code>/nextgen</code> и нажмите кнопку <b>[ Синхронизировать сейчас ]</b> (или дождитесь первого PayDay), чтобы отправить первый отчёт. Пока отображаются демо-графики.
   </div>
 
   <!-- Header -->
@@ -3765,7 +3765,7 @@
           // Firebase returns null when database is empty (no data written yet)
           updateSyncStatus('demo', 'База пока пуста');
           if (isManual) {
-            showToast('База подключена! Отправьте данные из /mntg', 'ℹ️');
+            showToast('База подключена! Отправьте данные из /nextgen', 'ℹ️');
           }
           showEmptyDatabaseNotice();
           if (!appData) loadDemoData();
@@ -4320,7 +4320,7 @@
 
       const runs = listData.caseRuns;
       if (runs.length === 0) {
-        container.innerHTML = '<div class="cases-empty">История появится после первого прогона /anc</div>';
+        container.innerHTML = '<div class="cases-empty">История появится после первого прогона кейсов</div>';
         return;
       }
 

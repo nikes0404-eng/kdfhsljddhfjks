@@ -2108,6 +2108,58 @@
       .lg-bg { transform: none; transition: none; }
     }
     /* ==== /LIQUID GLASS: живость интерфейса ==== */
+    /* ==== SERVICE BLOCK: ручной запуск налогов (Задача 31) ==== */
+    /* Служебный блок свёрнут по умолчанию: в обычном использовании MiniApp
+       кнопка налогов не нужна, это резерв на случай неудачного сбора. */
+    .svc-details {
+      margin: 0;
+    }
+    .svc-details > summary {
+      cursor: pointer;
+      list-style: none;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .svc-details > summary::-webkit-details-marker { display: none; }
+    .svc-details > summary::after {
+      content: '\25BE';
+      margin-left: auto;
+      font-size: 11px;
+      transition: transform 0.2s ease;
+    }
+    .svc-details[open] > summary::after { transform: rotate(180deg); }
+    .svc-details > summary:active { color: var(--text-main); }
+    .svc-body { padding-top: 10px; }
+    .svc-tax-result {
+      display: none;
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--text-muted);
+      word-break: break-word;
+    }
+    .svc-modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .modal-btn.ghost {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+    }
+    #svcTaxBtn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    [data-theme="light"] .modal-btn.ghost {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    /* ==== /SERVICE BLOCK: ручной запуск налогов (Задача 31) ==== */
     /* ==== LIQUID GLASS: плавающая капсула таб-бара ==== */
     /* Панель вкладок — плавающая капсула. Слой стоит последним в <style>, а
        значит перекрывает и базовые правила, и слой Liquid Glass, и слой
@@ -2682,6 +2734,22 @@
         Синхронизировано: —
       </div>
     </div>
+
+    <!-- Service block: manual tax run (fallback for a failed mining run) -->
+    <div class="settings-card" style="margin-bottom: 0;">
+      <details class="svc-details">
+        <summary>🛠️ Служебное: запуск оплаты налогов вручную</summary>
+        <div class="svc-body">
+          <p style="font-size: 12px; color: var(--text-muted); line-height: 1.45; margin: 0 0 10px;">
+            Основной механизм — автооплата после сбора. Это резерв на случай, если сбор не удался.
+          </p>
+          <button id="svcTaxBtn" class="btn-action" onclick="runManualTax()">
+            🏦 Запустить сценарий оплаты налогов
+          </button>
+          <div id="svcTaxResult" class="svc-tax-result"></div>
+        </div>
+      </details>
+    </div>
   </section>
 
   <!-- ==================== TAB 6: SETTINGS ==================== -->
@@ -2779,6 +2847,21 @@
         Чтобы кнопки запуска работали, отправьте боту команду <b>/start</b> и нажимайте кнопку <b>«⚡ Пульт и аналитика»</b> прямо на клавиатуре чата!
       </p>
       <button class="modal-btn" onclick="closeModalAndApp()">Понятно, открыть чат</button>
+    </div>
+  </div>
+
+  <!-- Confirmation before the manual tax run (service block) -->
+  <div id="svcTaxModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3>🏦 Оплатить налоги вручную?</h3>
+      <p>
+        Основной механизм — автооплата после сбора. Ручной запуск нужен, только если сбор не удался:
+        налоги будут оплачены прямо сейчас.
+      </p>
+      <div class="svc-modal-actions">
+        <button class="modal-btn ghost" onclick="closeSvcTaxModal()">Отмена</button>
+        <button class="modal-btn" onclick="confirmManualTax()">Запустить</button>
+      </div>
     </div>
   </div>
 
@@ -2919,7 +3002,13 @@
       if (!isDemo && getUserBaseUrl()) {
         const sent = await writeCloudCommand(cmd);
         if (sent) {
-          showToast(`Команда /${cmd} отправлена через облако`, '☁️');
+          if (cmd === 'tax') {
+            // Manual run: only an acknowledgement - no progress card, no tab jump.
+            showToast('Запускаю оплату налогов…', '🏦');
+            setSvcTaxResult('Запускаю оплату налогов…');
+          } else {
+            showToast(`Команда /${cmd} отправлена через облако`, '☁️');
+          }
           if (cmd === 'farm') {
             progressRequestedAt = Date.now();
             progressIdleStreak = 0;
@@ -2932,6 +3021,8 @@
       }
 
       // Fallback: Telegram sendData (closes the MiniApp).
+      // TODO(post-bot): when the Telegram bot is removed, this path must become an
+      // honest "cloud is required" toast instead of silently doing nothing.
       if (isFromMenu) {
         document.getElementById('menuModal').style.display = 'flex';
         return;
@@ -3118,6 +3209,10 @@
       const icon = a.ok === false ? '⚠️' : '✅';
       el.innerHTML = `<span>${icon}</span> <b>/${cmd}</b> ${msg}`;
       el.style.display = 'block';
+      // Ручной запуск налогов отвечает прямо под своей кнопкой (Задача 31).
+      if (String(a.cmd || '').replace(/^\//, '') === 'tax') {
+        setSvcTaxResult((a.ok === false ? '⚠️ ' : '✅ ') + (a.message || 'Готово'));
+      }
       if (ackTimer) clearTimeout(ackTimer);
       ackTimer = setTimeout(() => { el.style.display = 'none'; }, 8000);
     }
@@ -3187,6 +3282,7 @@
     function renderProgress(p) {
       const nowSec = Math.floor(Date.now() / 1000);
       renderAck(p);
+      updateSvcTaxButton(p);
       // The tax wait is legitimately quiet for up to ~4 minutes; the old 120 s
       // freshness window hid the card in the middle of it.
       const fresh = !!(p && p.updatedAt && (nowSec - Number(p.updatedAt) <= 900));
@@ -5860,6 +5956,48 @@
       window.addEventListener('resize', function () { lgMotion(false); });
     })();
     /* ==== /LIQUID GLASS: живость интерфейса (скрипт) ==== */
+    /* ==== SERVICE BLOCK: ручной запуск налогов (Задача 31) ==== */
+    // Ручной запуск налогов — резерв владельца: штатный путь идёт сам после
+    // сбора. Действие инициировал человек, поэтому ни прогресс-карточки, ни
+    // перехода на вкладку «Майнинг» (handoff §2, правило 11): оплата стартует
+    // сразу, а обратная связь — тост и строка результата под кнопкой.
+    function runManualTax() {
+      const btn = document.getElementById('svcTaxBtn');
+      if (btn && btn.disabled) return;
+      const modal = document.getElementById('svcTaxModal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeSvcTaxModal() {
+      const modal = document.getElementById('svcTaxModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function confirmManualTax() {
+      closeSvcTaxModal();
+      sendCommand('tax');
+    }
+
+    function setSvcTaxResult(text) {
+      const el = document.getElementById('svcTaxResult');
+      if (!el) return;
+      el.textContent = text || '';
+      el.style.display = text ? 'block' : 'none';
+    }
+
+    // Пока идёт сбор, ожидание или оплата — кнопка недоступна: сценарий всё
+    // равно откажет вторым запуском, а человек не должен в это тыкать.
+    function updateSvcTaxButton(p) {
+      const btn = document.getElementById('svcTaxBtn');
+      if (!btn) return;
+      const phase = p ? String(p.phase || '') : '';
+      const busy = !!(p && (p.active === true || phase === 'collect' || phase === 'tax_wait' || phase === 'tax'));
+      btn.disabled = busy;
+      btn.textContent = busy
+        ? '⏳ Идёт сбор/оплата — подождите'
+        : '🏦 Запустить сценарий оплаты налогов';
+    }
+    /* ==== /SERVICE BLOCK: ручной запуск налогов (Задача 31) ==== */
     /* ==== LIQUID GLASS: плавающая капсула таб-бара (скрипт) ==== */
     (function () {
       var nav = document.querySelector('.tab-nav');

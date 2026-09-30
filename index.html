@@ -1932,10 +1932,13 @@
          размытие читается как глубина между иконкой и подложкой панели. */
       backdrop-filter: blur(8px) saturate(175%);
       -webkit-backdrop-filter: blur(8px) saturate(175%);
+      /* Желейность: рост и опускание идут с перелётом — капля проскакивает цель
+         вверх и на возврате чуть сплющивается, а не щёлкает как переключатель. */
+      --lg-pill-pop: cubic-bezier(0.26, 1.62, 0.38, 1);
       transition:
         transform 0.44s var(--lg-ease),
         width 0.44s var(--lg-ease),
-        scale 0.34s var(--lg-ease),
+        scale 0.44s var(--lg-pill-pop),
         box-shadow 0.3s ease,
         opacity 0.25s ease;
     }
@@ -1954,11 +1957,14 @@
       opacity: 0.7;
       transition: opacity 0.25s ease;
     }
-    /* Пилюля в руке: она подросла (scale — отдельное свойство, поэтому рост не
-       спорит с позицией, которую скрипт пишет в transform), а при движении
-       вытягивается по ходу с ужиманием поперёк — как капля. */
+    /* Пилюля в руке — капля. Она растёт так, что становится ЗАМЕТНО выше
+       таб-бара: база 53 px × 1.48 ≈ 79 px против ≈ 67 px у капсулы, поэтому
+       кромки пилюли выходят за панель сверху и снизу. При движении она
+       вытягивается по ходу с ужиманием поперёк, причём вязко: значение ведёт
+       скрипт (`lgPullTick`), а не сам переход. Рост идёт свойством scale —
+       поэтому он не спорит с позицией, которую скрипт пишет в transform. */
     .tab-nav.lg-held .lg-tab-indicator {
-      scale: var(--lg-pill-sx, 1.07) var(--lg-pill-sy, 1.02);
+      scale: var(--lg-pill-sx, 1.22) var(--lg-pill-sy, 1.48);
       opacity: 1;
       backdrop-filter: blur(10px) saturate(185%);
       -webkit-backdrop-filter: blur(10px) saturate(185%);
@@ -5061,12 +5067,14 @@
        только после явного перевеса по X. Тач по canvas графика игнорируется —
        у него свои обработчики. При prefers-reduced-motion слайдер молчит.
 
-       3) Пилюля ведёт себя как жидкое стекло: пока её держат, она подрастает
-          (свойство scale, а не transform — иначе рост спорил бы с позицией,
-          которую пишет lgSetPuck), при быстром движении вытягивается по ходу
-          и ужимается поперёк, а блик уходит за пальцем. Кромки светятся сверху
-          и темнеют снизу, под пилюлей своё размытие — она читается как стекло,
-          лежащее на стекле панели. */
+       3) Пилюля ведёт себя как жидкое стекло: пока её держат, она подрастает и
+          становится заметно выше панели (свойство scale, а не transform — иначе
+          рост спорил бы с позицией, которую пишет lgSetPuck), при быстром
+          движении вытягивается по ходу и ужимается поперёк — вязко, с
+          запаздыванием за жестом и рассасыванием после остановки пальца, — а
+          блик уходит за пальцем. Кромки светятся сверху и темнеют снизу, под
+          пилюлей своё размытие — она читается как стекло, лежащее на стекле
+          панели. */
     (function () {
       var TABS = ['mining', 'farmStats', 'payday', 'cases', 'character', 'settings'];
       var nav = document.querySelector('.tab-nav');
@@ -5098,10 +5106,17 @@
           return { left: left, width: r.width, center: left + r.width / 2 };
         });
       }
+      // Переход пилюли на время жеста. Позиция и ширина идут за пальцем без
+      // инерции, а у `scale` остаётся короткий ровный переход: он сглаживает
+      // покадровые значения вязкости и не даёт капле «щёлкнуть» в тот момент,
+      // когда жест забирает пилюлю себе (раньше здесь стоял `transition: none`,
+      // и рост «в руку» обрывался на полпути до целевого размера).
+      var LG_DRAG_TRANSITION = 'transform 0s linear, width 0s linear, scale 0.18s linear';
+
       function lgSetPuck(left, width, animate) {
         var p = lgPuck();
         if (!p) return;
-        p.style.transition = animate ? '' : 'none';
+        p.style.transition = animate ? '' : LG_DRAG_TRANSITION;
         p.style.width = width + 'px';
         p.style.transform = 'translate3d(' + left + 'px, 0, 0)';
       }
@@ -5169,17 +5184,85 @@
         if (on === nav.classList.contains('lg-held')) return;
         nav.classList.toggle('lg-held', on);
         if (!on) {
-          lgPillStretch(0);
+          lgPullStop();   // рост, растяжение и блик — назад
           nav.style.removeProperty('--lg-pill-hx');
           nav.style.removeProperty('--lg-pill-hy');
         }
       }
       // Чем быстрее идёт палец, тем сильнее вытягивание — и на столько же уже
       // поперёк: «капля» сохраняет объём, поэтому движение читается как жидкость.
+      // База — рост в руке (1.22/1.48, см. `.lg-held`): вытягивание тянет ширину
+      // до ≈ 1.42 и снимает часть высоты, но так, что даже на резком броске капля
+      // остаётся не ниже самой панели.
+      //
+      // Растяжение — ВЯЗКОЕ, поэтому здесь не одно значение, а две величины:
+      // цель (её задаёт скорость жеста) и текущая форма, которая догоняет цель
+      // экспоненциально. Отсюда и поведение: капля тянется за пальцем с лёгким
+      // запаздыванием, а когда палец встал — цель гаснет сама, и форма плавно
+      // рассасывается до размера «в руке», а не застывает вытянутой. Позицию
+      // капли это не меняет: за пальцем она по-прежнему идёт ровно (её пишет
+      // lgSetPuck) — вязкая только форма.
+      var LG_SPAN = 0.2;        // предел растяжения (см. `.lg-held` в CSS)
+      var LG_TAU_UP = 0.07;     // как быстро форма догоняет жест, с
+      var LG_TAU_DOWN = 0.18;   // как плавно она рассасывается, с
+      var LG_TAU_GOAL = 0.1;    // как гаснет цель без новых событий, с
+      var LG_EPS = 0.005;
+      var lgPull = { target: 0, cur: 0, last: 0, raf: 0 };
+
+      function lgPullReset() {
+        lgPull = { target: 0, cur: 0, last: 0, raf: 0 };
+      }
+      // Форма пишется в переменные панели только когда это заметно: запись в
+      // стиль — это пересчёт, а событий жеста бывает по несколько в кадр.
+      function lgPullPaint() {
+        var s = lgPull.cur;
+        if (s <= LG_EPS) {
+          nav.style.removeProperty('--lg-pill-sx');
+          nav.style.removeProperty('--lg-pill-sy');
+          return;
+        }
+        nav.style.setProperty('--lg-pill-sx', (1.22 + s).toFixed(3));
+        nav.style.setProperty('--lg-pill-sy', (1.48 - s * 0.9).toFixed(3));
+      }
+      function lgPullTick(ts) {
+        var p = lgPull;
+        var dt = p.last ? Math.min(0.05, (ts - p.last) / 1000) : 0.016;
+        p.last = ts;
+        // Палец встал — цель гаснет сама: это и есть рассасывание.
+        if (p.target > 0) p.target *= Math.exp(-dt / LG_TAU_GOAL);
+        var tau = p.target > p.cur ? LG_TAU_UP : LG_TAU_DOWN;
+        p.cur += (p.target - p.cur) * (1 - Math.exp(-dt / tau));
+        if (Math.abs(p.target - p.cur) < LG_EPS) p.cur = p.target;
+        if (p.target <= LG_EPS && p.cur <= LG_EPS) {
+          lgPullReset();
+          lgPullPaint();
+          return;
+        }
+        lgPullPaint();
+        p.raf = window.requestAnimationFrame(lgPullTick);
+      }
+      // Скорость жеста задаёт только цель: форма придёт к ней сама, с задержкой.
       function lgPillStretch(pxPerEvent) {
-        var s = Math.min(0.13, Math.abs(pxPerEvent || 0) / 260);
-        nav.style.setProperty('--lg-pill-sx', (1.07 + s).toFixed(3));
-        nav.style.setProperty('--lg-pill-sy', (1.02 - s * 0.45).toFixed(3));
+        var s = Math.min(LG_SPAN, Math.abs(pxPerEvent || 0) / 150);
+        if (!lgMotionOK()) {
+          // При reduced-motion форма не «плывёт»: значение ставится сразу.
+          lgPullReset();
+          lgPull.cur = s;
+          lgPullPaint();
+          return;
+        }
+        lgPull.target = s;
+        if (!lgPull.raf) {
+          lgPull.last = 0;
+          lgPull.raf = window.requestAnimationFrame(lgPullTick);
+        }
+      }
+      // Отпускание: класс `lg-held` уже снят, поэтому капля возвращается к покою
+      // пружиной CSS, а растяжение просто забывается.
+      function lgPullStop() {
+        if (lgPull.raf) window.cancelAnimationFrame(lgPull.raf);
+        lgPullReset();
+        lgPullPaint();
       }
       // Блик идёт за пальцем: точка берётся в процентах от самой пилюли, поэтому
       // работает и при вытягивании.
@@ -5396,7 +5479,7 @@
           lgPillHold(true);
           s.pane.classList.add('lg-dragging');
           var p = lgPuck();
-          if (p) p.style.transition = 'none';
+          if (p) p.style.transition = LG_DRAG_TRANSITION;
         }
         if (s.axis !== 'x') return;
         if (e.cancelable) e.preventDefault();

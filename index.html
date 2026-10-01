@@ -71,11 +71,6 @@
       border: 1px solid rgba(245, 158, 11, 0.35);
       color: #fde68a;
     }
-    .banner-warning {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.4);
-      color: #fca5a5;
-    }
     .banner strong {
       display: block;
       margin-bottom: 4px;
@@ -1839,7 +1834,6 @@
     [data-theme="light"] .coolant-alert-box { background: rgba(239, 68, 68, 0.12); }
     /* Смысловые цвета: те же значения, но читаемые на светлом */
     [data-theme="light"] .banner-preview { color: #92400e; }
-    [data-theme="light"] .banner-warning { color: #b91c1c; }
     [data-theme="light"] .coolant-alert-box,
     [data-theme="light"] .coolant-badge.danger,
     [data-theme="light"] .progress-stop,
@@ -2269,11 +2263,6 @@
   <div id="previewNotice" class="banner banner-preview">
     <strong>💡 Режим предпросмотра</strong>
     Открыто в обычном браузере. Вы можете настраивать Cloud URL и переключать режимы.
-  </div>
-
-  <div id="menuNotice" class="banner banner-warning">
-    <strong>⚠️ Открыто через кнопку Menu</strong>
-    Для прямого запуска сбора ферм открывайте пульт через кнопку <b>«⚡ Пульт и аналитика»</b> на клавиатуре чата.
   </div>
 
   <div id="emptyDbNotice" class="banner" style="background: rgba(99, 102, 241, 0.14); border: 1px solid rgba(99, 102, 241, 0.4); color: #c7d2fe;">
@@ -2786,6 +2775,16 @@
         <input type="text" id="chatIdInput" class="input-field" placeholder="Например: 123456789">
       </div>
 
+      <div class="input-group">
+        <label for="apiKeyInput">Firebase Web API key (анонимный вход):</label>
+        <input type="text" id="apiKeyInput" class="input-field" placeholder="AIza... (нужен при правиле auth != null)">
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-top: -4px;">
+        Нужен, только если узел <code>command</code> защищён правилом <code>"auth != null"</code>:
+        приложение входит анонимно и подписывает команду токеном. Провайдер «Анонимный вход»
+        включается в Firebase Console → Authentication → Sign-in method.
+      </p>
+
       <button class="btn-action" onclick="saveCloudSettings()">
         💾 Сохранить и подключить
       </button>
@@ -2838,18 +2837,6 @@
     <span id="toastText">Команда отправлена</span>
   </div>
 
-  <!-- Menu button warning modal -->
-  <div id="menuModal" class="modal-overlay">
-    <div class="modal-box">
-      <h3>⚠️ Ограничение Telegram</h3>
-      <p>
-        Вы открыли пульт через кнопку Menu внизу чата. В этом режиме Telegram не позволяет отправлять команды боту без выделенного сервера.<br><br>
-        Чтобы кнопки запуска работали, отправьте боту команду <b>/start</b> и нажимайте кнопку <b>«⚡ Пульт и аналитика»</b> прямо на клавиатуре чата!
-      </p>
-      <button class="modal-btn" onclick="closeModalAndApp()">Понятно, открыть чат</button>
-    </div>
-  </div>
-
   <!-- Confirmation before the manual tax run (service block) -->
   <div id="svcTaxModal" class="modal-overlay">
     <div class="modal-box">
@@ -2868,7 +2855,6 @@
   <script>
     const tg = window.Telegram?.WebApp;
     const isTg = !!(tg && typeof tg.ready === 'function');
-    const isFromMenu = isTg && tg.initData && tg.initData.length > 0;
 
     let activeTab = 'mining';
     let currentRange = 'today';
@@ -2881,11 +2867,6 @@
       tg.expand();
       if (tg.setHeaderColor) tg.setHeaderColor('#0b0c13');
       if (tg.setBackgroundColor) tg.setBackgroundColor('#0b0c13');
-
-      if (isFromMenu) {
-        const menuNotice = document.getElementById('menuNotice');
-        if (menuNotice) menuNotice.style.display = 'block';
-      }
 
       // BackButton handling
       if (tg.BackButton) {
@@ -2926,11 +2907,6 @@
       toastTimeout = setTimeout(() => {
         toast.classList.remove('show');
       }, 2200);
-    }
-
-    function closeModalAndApp() {
-      document.getElementById('menuModal').style.display = 'none';
-      if (isTg && tg.close) tg.close();
     }
 
     // Tab switcher
@@ -2996,9 +2972,9 @@
         }
       }
 
-      // Preferred path: cloud command channel. Telegram sendData is one-shot per
-      // session and closes the MiniApp, so we send the command through Firebase
-      // (users/<id>/command.json) and keep the app open with a live progress bar.
+      // The only command channel (Задача 33, стадия 0): Firebase. Telegram sendData
+      // delivered the command once per session and closed the MiniApp, so it is gone
+      // for good; without the cloud the command simply has nowhere to go.
       if (!isDemo && getUserBaseUrl()) {
         const sent = await writeCloudCommand(cmd);
         if (sent) {
@@ -3017,33 +2993,16 @@
           }
           return;
         }
-        showToast('Облако недоступно — отправляю через Telegram', '⚠️');
+        showToast('Облако недоступно — команда не ушла', '⚠️');
       }
 
-      // Fallback: Telegram sendData (closes the MiniApp).
-      // TODO(post-bot): when the Telegram bot is removed, this path must become an
-      // honest "cloud is required" toast instead of silently doing nothing.
-      if (isFromMenu) {
-        document.getElementById('menuModal').style.display = 'flex';
-        return;
-      }
-
-      if (cmd === 'rec') {
-        showToast('Отправка команды /rec в чат...', '⚡');
-      } else {
-        showToast(`Отправка /${cmd}...`);
-      }
-
-      if (isTg) {
-        setTimeout(() => {
-          try {
-            tg.sendData(cmd);
-          } catch (e) {
-            console.error('Error sending data:', e);
-          }
-        }, 150);
-      } else {
-        console.log(`[Preview] Command sent: ${cmd}`);
+      // No fallback left (Задача 33, стадия 0): the Telegram channel is gone from
+      // the MiniApp entirely, so both "no cloud" and the demo mode end here. The old
+      // menu-button modal explained a Telegram limitation that no longer exists.
+      if (isDemo) {
+        showToast('Демо-режим: команды не отправляются', '💡');
+      } else if (!getUserBaseUrl()) {
+        showToast('Нужно подключить облако: Настройки → Firebase', '⚠️');
       }
     }
 
@@ -3058,8 +3017,11 @@
     let lastProgress = null;
     let lastProgressWasActive = false;
     let autoRefreshTimer = null;
+    let heartbeatTimer = null;
     let progressRunning = false;
     let lastAckTs = 0;
+    let lastProgressEtag = '';
+    let lastHeartbeatEtag = '';
     let ackTimer = null;
 
     function getUserBaseUrl() {
@@ -3070,6 +3032,61 @@
       const userKey = getChatId() || 'default';
       return `${url}/users/${userKey}`;
     }
+
+    // ==================== STAGE 4: ANONYMOUS AUTH ====================
+    // Узел command - единственная открытая на запись точка канала (handoff §17.3).
+    // Стадия 4 переводит его правило на "auth != null": приложение входит анонимно
+    // (Identity Toolkit REST) и прикладывает ID-токен как ?auth=<token>. Пока правило
+    // ещё открыто, отсутствие ключа или провайдера просто оставляет запись как была.
+    const ANON_KEY_LS = 'mng_api_key';
+    const ANON_AUTH_URL = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=';
+    const anonAuth = { token: '', exp: 0, attempts: 0 };
+
+    function getApiKey() {
+      // ?apikey=... удобен для ссылки-ярлыка; иначе - поле в «Настройках».
+      const q = new URLSearchParams(window.location.search).get('apikey');
+      if (q) {
+        try { localStorage.setItem(ANON_KEY_LS, q); } catch (e) {}
+        return q;
+      }
+      try { return localStorage.getItem(ANON_KEY_LS) || ''; } catch (e) { return ''; }
+    }
+
+    function resetAnonAuth() {
+      anonAuth.token = '';
+      anonAuth.exp = 0;
+    }
+
+    async function authQuery() {
+      const key = getApiKey();
+      if (!key) return '';
+      if (anonAuth.token && Date.now() < anonAuth.exp) {
+        return '?auth=' + encodeURIComponent(anonAuth.token);
+      }
+      anonAuth.attempts++;
+      try {
+        const resp = await fetch(ANON_AUTH_URL + encodeURIComponent(key), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ returnSecureToken: true })
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data || !data.idToken) {
+          throw new Error((data && data.error && data.error.message) || ('HTTP ' + resp.status));
+        }
+        const ttlMs = (Number(data.expiresIn) || 3600) * 1000;
+        anonAuth.token = data.idToken;
+        // минус минута: просроченный токен базе не отдаём
+        anonAuth.exp = Date.now() + Math.max(60000, ttlMs - 60000);
+        console.log('[Auth] Anonymous sign-in ok, token for ' + Math.round(ttlMs / 1000) + 's');
+        return '?auth=' + encodeURIComponent(anonAuth.token);
+      } catch (e) {
+        console.warn('[Auth] Anonymous sign-in failed:', e);
+        resetAnonAuth();
+        return '';
+      }
+    }
+    // ==================== /STAGE 4: ANONYMOUS AUTH ====================
 
     async function writeCloudCommand(cmd) {
       const base = getUserBaseUrl();
@@ -3083,11 +3100,19 @@
         src: 'miniapp'
       });
       try {
-        const resp = await fetch(base + '/command.json', {
+        // Стадия 4: команда подписывается анонимным ID-токеном (правило auth != null).
+        // Если правило ещё открыто или провайдер выключен - запись уходит как раньше.
+        const authQ = await authQuery();
+        const reqOpts = {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: payload
-        });
+        };
+        let resp = await fetch(base + '/command.json' + authQ, reqOpts);
+        if (!resp.ok && authQ && (resp.status === 401 || resp.status === 403)) {
+          resetAnonAuth();
+          resp = await fetch(base + '/command.json', reqOpts);
+        }
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         console.log('[Cmd] Sent via cloud:', cmd);
         return true;
@@ -3118,6 +3143,26 @@
     // pauses while the tab is hidden.
     const TASK_POLL_ACTIVE_MS = 3000;
     const TASK_POLL_IDLE_MS = 7000;
+    // Стадия 4: неизменившийся узел (ETag) в простое читается реже. Порог с запасом
+    // больше и такта записи пульса, и шага задачи, поэтому «пропускается» только
+    // настоящая тишина, а не пропущенное изменение.
+    const PROGRESS_POLL_BACKOFF_MS = 15000;
+
+    // Доказательства жизни приходят не чаще, чем раз в PayDay (30 минут): авто-скан
+    // пишет character.json через 10 секунд после чека. Молчание дольше 40 минут
+    // означает, что процесс мёртв — крашнутая игра о себе сообщить не может, а статус
+    // пишется только при смене состояния и потому навсегда остаётся «В игре».
+    const OFFLINE_AFTER_MIN = 40;
+
+    // Пульс из игры (handoff §4, Задача 33, стадия 1): скрипт пишет heartbeat.json
+    // каждые 30 секунд, поэтому вопрос «жив ли процесс» решается за пару минут, а не за
+    // сорок. HEARTBEAT_DEAD_SEC - молчание дольше двух минут; запас нужен не на
+    // подозрительность, а на задержку сети, потому что ложное «не в сети» пугает
+    // сильнее, чем опоздавший вердикт. HEARTBEAT_BEAT_SEC - такт записи: неизвестно,
+    // сколько удар пролежал в базе до чтения, поэтому он прибавляется к вердикту.
+    const HEARTBEAT_DEAD_SEC = 120;
+    const HEARTBEAT_BEAT_SEC = 30;
+    const HEARTBEAT_POLL_MS = 30000;
 
     function taskIsLive() {
       const p = lastProgress;
@@ -3125,10 +3170,19 @@
       return p.active === true || (!!p.phase && p.phase !== 'idle');
     }
 
+    // Стадия 4: ETag узла знает, изменился ли он, поэтому неизменившийся ответ не
+    // перерисовывается, а в простое опрос идёт реже. If-None-Match считаем сами:
+    // условного GET у RTDB нет - `if-match` в GET база отвергает с 400.
+    function progressNextDelay(changed) {
+      if (taskIsLive()) return TASK_POLL_ACTIVE_MS;
+      return changed ? TASK_POLL_IDLE_MS : PROGRESS_POLL_BACKOFF_MS;
+    }
+
     async function progressLoop() {
-      if (progressRunning) await fetchProgress();
+      let changed = false;
+      if (progressRunning) changed = await fetchProgress();
       if (!progressRunning) return;
-      progressTimer = setTimeout(progressLoop, taskIsLive() ? TASK_POLL_ACTIVE_MS : TASK_POLL_IDLE_MS);
+      progressTimer = setTimeout(progressLoop, progressNextDelay(changed));
     }
 
     function startProgressPolling(force) {
@@ -3172,17 +3226,64 @@
       const base = getUserBaseUrl();
       if (!base) { stopProgressPolling(); return; }
       try {
-        const resp = await fetch(base + '/progress.json', { cache: 'no-cache' });
+        const resp = await fetch(base + '/progress.json', {
+          cache: 'no-cache',
+          headers: { 'X-Firebase-ETag': 'true' }
+        });
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        // RTDB отдаёт ETag по запросу и выставляет его в CORS, но условного GET не
+        // умеет: сравнение здесь и есть If-None-Match, только на стороне клиента.
+        const etag = resp.headers.get('ETag') || '';
+        if (etag && etag === lastProgressEtag) return false;
+        lastProgressEtag = etag;
         const data = await resp.json();
         if (data === null && lastProgress && lastProgress.active === true) {
           // Missing/cleared node: never tear down a card for a run we know is live.
-          return;
+          return false;
         }
         renderProgress(data);
+        return true;
       } catch (e) {
         console.warn('[Progress] fetch failed:', e);
       }
+      return false;
+    }
+
+    // Пульс читается своим микроузлом, а не только вместе с большим users/<id>.json:
+    // во время сбора большое чтение намеренно спит (progress.json и так свежий), и
+    // именно поэтому краш посреди сбора был бы незаметен - прогресс замирает, пульс
+    // исчезает. Темп чтения равен темпу записи, вкладка должна быть видимой.
+    async function fetchHeartbeat() {
+      const base = getUserBaseUrl();
+      if (!base || isDemo || !appData) return;
+      try {
+        const resp = await fetch(base + '/heartbeat.json', {
+          cache: 'no-cache',
+          headers: { 'X-Firebase-ETag': 'true' }
+        });
+        if (!resp.ok) return false;
+        // Тот же ETag - тот же удар пульса (см. fetchProgress): ни разбора, ни
+        // перерисовки бейджа. Пустой ETag ничего не пропускает.
+        const etag = resp.headers.get('ETag') || '';
+        if (etag && etag === lastHeartbeatEtag) return false;
+        lastHeartbeatEtag = etag;
+        const hb = await resp.json();
+        if (!hb || typeof hb !== 'object') return false;
+        appData.heartbeat = hb;
+        applyCharBadge(appData.character);
+        return true;
+      } catch (e) {
+        // Пульс - доказательство необязательное: молчание сети не должно ломать бейдж.
+        console.warn('[Heartbeat] fetch failed:', e);
+      }
+    }
+
+    function startHeartbeatPolling() {
+      if (heartbeatTimer) return;
+      heartbeatTimer = setInterval(() => {
+        if (document.visibilityState && document.visibilityState !== 'visible') return;
+        fetchHeartbeat();
+      }, HEARTBEAT_POLL_MS);
     }
 
     function escapeHtml(s) {
@@ -3777,6 +3878,9 @@
         mining: mining,
         miningProfit: miningProfit,
         character: rawData.character || null,
+        // Пульс приезжает вместе с полным чтением users/<id>.json: отдельный узел нужен
+        // только чтобы не терять его, пока большое чтение спит во время сбора.
+        heartbeat: rawData.heartbeat || null,
         cmdToken: rawData.cmdToken || null,
         progress: rawData.progress || null,
         cases: cases
@@ -3794,6 +3898,13 @@
       if (chatInp) {
         localStorage.setItem('mng_chat_id', chatInp);
       }
+      const apiInp = document.getElementById('apiKeyInput');
+      if (apiInp) {
+        const keyVal = String(apiInp.value || '').trim();
+        if (keyVal) localStorage.setItem(ANON_KEY_LS, keyVal);
+        else localStorage.removeItem(ANON_KEY_LS);
+      }
+      resetAnonAuth();
       showToast('Настройки сохранены!', '✅');
       isDemo = false;
       refreshData(false);
@@ -3830,6 +3941,8 @@
       const curChatId = getChatId();
       const chatInp = document.getElementById('chatIdInput');
       if (chatInp) chatInp.value = curChatId;
+      const apiInp = document.getElementById('apiKeyInput');
+      if (apiInp) apiInp.value = getApiKey();
 
       if (!cloudUrl && !isDemo) {
         // No cloud configured, fallback to demo
@@ -4699,13 +4812,106 @@
       }
     }
 
-    function renderCharacterTab(charData) {
+    // ---- Пульс из игры (handoff §4, Задача 33, стадия 1) ----------------------
+    // Пульс доказывает жизнь самого процесса: MoonLoader живёт внутри gta_sa.exe, и
+    // упавшая игра о себе сообщить не может. Поэтому он точнее character/status.json -
+    // тот пишется только при СМЕНЕ состояния и потому может быть стар на часы.
+    //
+    // Возраст пульса считается по часам ТЕЛЕФОНА. Сравнивать hb.t с Date.now() напрямую
+    // нельзя: если часы на ПК отстают, живая игра выглядела бы мёртвой. Поэтому
+    // запоминается местное время прихода текущего удара, и дальше возраст растёт от
+    // него - расхождение часов сокращается. Первое чтение после открытия страницы ещё
+    // сравнивает часы напрямую; при отстающих часах ПК вердикт может остаться красным
+    // не дольше одного такта, пока не придёт следующий удар.
+    let hbLastT = 0;
+    let hbLastSeenAt = 0;
+    let hbAgeAtSeen = 0;
+
+    // Возраст последнего удара в секундах ("-1" - удара не видели вовсе). Метка ПК
+    // используется только на самой первой пробе: дальше возраст растёт от местных часов.
+    function heartbeatAgeSec(hb) {
+      const t = hb ? (Number(hb.t) || 0) : 0;
+      if (t <= 0) return -1;
+      const nowMs = Date.now();
+      if (t !== hbLastT) {
+        hbAgeAtSeen = (hbLastT === 0)
+          ? Math.max(0, Math.floor(nowMs / 1000) - t)
+          : 0;
+        hbLastT = t;
+        hbLastSeenAt = nowMs;
+      }
+      return hbAgeAtSeen + Math.floor((nowMs - hbLastSeenAt) / 1000);
+    }
+
+    // Бейдж состояния под аватаркой. Живёт отдельно от renderCharacterTab, потому что
+    // обновляется не только полным чтением базы, но и каждым ударом пульса: пока идёт
+    // сбор, большое чтение намеренно спит, и краш игры посреди сбора иначе остался бы
+    // незамеченным. Ничего нового не показываем - тот же бейдж, но он не врёт.
+    function applyCharBadge(charData) {
       const stateBadge = document.getElementById('charStateBadge');
-      if (!charData) {
-        if (stateBadge) {
-          stateBadge.className = 'char-badge danger char-avatar-status';
-          stateBadge.textContent = '🔴 Не в сети';
+      if (!stateBadge) return;
+
+      const now = Math.floor(Date.now() / 1000);
+      const status = (charData && charData.status) || {};
+      let state = status.state || 'spawned';
+      let stateText = status.stateText || '';
+      let remSec = Number(status.reconnectIn) || 0;
+
+      const hb = (appData && appData.heartbeat) || null;
+      const hbAge = heartbeatAgeSec(hb);
+      let alive = null;   // true / false / null - «неизвестно»
+
+      if (hbAge >= 0) {
+        // Плюс один такт: удар всегда лежит в базе до чтения, и без допуска вердикт
+        // «мёртв» опережал бы факт. Счётчик реконнекта, наоборот, идёт от чистого
+        // возраста - иначе он показывал бы на такт меньше, чем осталось на самом деле.
+        alive = (hbAge + HEARTBEAT_BEAT_SEC) <= HEARTBEAT_DEAD_SEC;
+        if (alive) {
+          // Состояние берём из пульса: он максимум на один такт старше, чем status.json.
+          state = hb.state || state;
+          stateText = hb.stateText || stateText;
+          remSec = Math.max(0, (Number(hb.reconnectIn) || 0) - hbAge);
         }
+      } else if (charData) {
+        // Пульса нет (на ПК ещё старая версия скрипта) - работает прежняя оценка по
+        // последнему доказательству: смена статуса, запись character.json или сам PayDay.
+        const lastSeen = Math.max(
+          Number(status.updatedAt) || 0,
+          Number(charData.updatedAt || (charData.player && charData.player.updatedAt)) || 0,
+          (appData && appData.recentPaydays && appData.recentPaydays.length)
+            ? (Number(appData.recentPaydays[0].time) || 0)
+            : 0
+        );
+        if (lastSeen > 0) alive = (now - lastSeen) <= OFFLINE_AFTER_MIN * 60;
+      }
+
+      if (!charData || alive === false) {
+        stateBadge.className = 'char-badge danger char-avatar-status';
+        stateBadge.textContent = '🔴 Не в сети';
+      } else if (state === 'spawned') {
+        stateBadge.className = 'char-badge online char-avatar-status';
+        stateBadge.textContent = '🟢 В игре';
+      } else if (state === 'connected') {
+        stateBadge.className = 'char-badge warn char-avatar-status';
+        stateBadge.textContent = '🟡 Авторизация';
+      } else if (state === 'connecting') {
+        stateBadge.className = 'char-badge warn char-avatar-status';
+        stateBadge.textContent = '🟡 Подключение...';
+      } else if (state === 'reconnecting') {
+        stateBadge.className = 'char-badge danger char-avatar-status';
+        stateBadge.textContent = '⏳ Реконнект ' + (remSec > 0 ? '(' + remSec + 'с)' : '...');
+      } else if (state === 'disconnected') {
+        stateBadge.className = 'char-badge danger char-avatar-status';
+        stateBadge.textContent = '🔴 Не в сети';
+      } else {
+        stateBadge.className = 'char-badge lvl char-avatar-status';
+        stateBadge.textContent = '⚪ ' + (stateText || 'Неизвестно');
+      }
+    }
+
+    function renderCharacterTab(charData) {
+      if (!charData) {
+        applyCharBadge(null);
         document.getElementById('charName').textContent = 'Нет данных';
         document.getElementById('charLevel').textContent = '⚡ Ур. —';
         document.getElementById('charVip').textContent = '👑 VIP: —';
@@ -4729,30 +4935,10 @@
       }
 
       // Connection & Character state badge
-      const status = charData.status || {};
-      if (stateBadge) {
-        const state = status.state || 'spawned';
-        const remSec = Number(status.reconnectIn) || 0;
-        if (state === 'spawned') {
-          stateBadge.className = 'char-badge online char-avatar-status';
-          stateBadge.textContent = '🟢 В игре';
-        } else if (state === 'connected') {
-          stateBadge.className = 'char-badge warn char-avatar-status';
-          stateBadge.textContent = '🟡 Авторизация';
-        } else if (state === 'connecting') {
-          stateBadge.className = 'char-badge warn char-avatar-status';
-          stateBadge.textContent = '🟡 Подключение...';
-        } else if (state === 'reconnecting') {
-          stateBadge.className = 'char-badge danger char-avatar-status';
-          stateBadge.textContent = '⏳ Реконнект ' + (remSec > 0 ? '(' + remSec + 'с)' : '...');
-        } else if (state === 'disconnected') {
-          stateBadge.className = 'char-badge danger char-avatar-status';
-          stateBadge.textContent = '🔴 Не в сети';
-        } else {
-          stateBadge.className = 'char-badge lvl char-avatar-status';
-          stateBadge.textContent = '⚪ ' + (status.stateText || 'Неизвестно');
-        }
-      }
+
+      // Connection & Character state badge: сам вердикт живёт в applyCharBadge,
+      // потому что обновляется не только полным чтением базы, но и ударом пульса.
+      applyCharBadge(charData);
 
       const p = charData.player || {};
       const inv = charData.inventory || {};
@@ -5046,6 +5232,7 @@
     fetchBtcRate();
     refreshData(false);
     startAutoRefresh();
+    startHeartbeatPolling();
     startProgressPolling(false);
     /* ==== LIQUID GLASS: скрипт ==== */
     (function () {
